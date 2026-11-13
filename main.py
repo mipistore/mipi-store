@@ -215,12 +215,13 @@ async def send_history_log(guild, channel, data, admin_user):
     if not ch: return
     number = data["number"]; user_id = data["user_id"]
     roblox_user = data.get("roblox_username", data.get("username", "-"))
+    nickname = data.get("nickname", "-")
     paket = data.get("paket", "500 Robux")
     pembayaran = data.get("pembayaran", "Qrs")
     jumlah, harga = hitung_harga(paket)
     ticket_name = channel.name if channel else f"robux-via-username-{number}-{data.get('username','user')}"
     embed = discord.Embed(color=0x2b2d31)
-    embed.description = f"🔒 Ticket Log\n\n🎫 Ticket\n{ticket_name}\n🔒 Action\nClosed\n⚡ Panel\nRobux Via Username\n🎀 Member\n<@{user_id}>\n👤 Username Roblox\n{roblox_user}\n✨ Jumlah Robux\n{jumlah}\n💰 Total Harga\n{harga}\n💳 Payment\n{pembayaran}\n✅ Admin\n{admin_user.mention if admin_user else 'Auto-Close'}"
+    embed.description = f"🔒 Ticket Log\n\n🎫 Ticket\n{ticket_name}\n🔒 Action\nClosed\n⚡ Panel\nRobux Via Username\n🎀 Member\n<@{user_id}>\n🏷️ Nickname Roblox\n{nickname}\n👤 Username Roblox\n{roblox_user}\n✨ Jumlah Robux\n{jumlah}\n💰 Total Harga\n{harga}\n💳 Payment\n{pembayaran}\n✅ Admin\n{admin_user.mention if admin_user else 'Auto-Close'}"
     embed.set_image(url=THANKYOU_URL)
     await ch.send(embed=embed)
 
@@ -336,13 +337,19 @@ class CommentModal(discord.ui.Modal, title="Komentar / Testimoni"):
         except Exception as e: print(f"Gagal vouch: {e}")
         await interaction.response.send_message(f"Terima kasih komentarnya! 💗\n> {self.komentar.value}\n\nVouch kamu sudah muncul di **#⭐┆・vouch** + jadi thread! 🎉\nRating: {'⭐'*stars} ({stars}/5)", ephemeral=True)
 
+def is_admin_or_owner(user, guild):
+    if user.id == guild.owner_id: return True
+    if user.guild_permissions.administrator: return True
+    role_names = [r.name.lower() for r in user.roles]
+    return any(x in role_names for x in ["admin", "owner", "staff", "moderator", "adm"])
+
 class StatusView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="⏳ Menunggu Pembayaran", style=discord.ButtonStyle.secondary, custom_id="status_waiting")
     async def waiting(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if interaction.user.id != interaction.guild.owner_id:
-            await interaction.followup.send("❌ Hanya **Owner** yang bisa update status!", ephemeral=True); return
+        if not is_admin_or_owner(interaction.user, interaction.guild):
+            await interaction.followup.send("❌ Hanya **Admin & Owner** yang bisa update status!", ephemeral=True); return
         data = ticket_data.get(interaction.channel.id, {})
         if data: data["last_activity"] = time.time()
         await interaction.followup.send("⏳ Status diubah: **Menunggu Pembayaran**")
@@ -350,8 +357,8 @@ class StatusView(discord.ui.View):
     @discord.ui.button(label="🔄 Diproses", style=discord.ButtonStyle.primary, custom_id="status_process")
     async def process(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if interaction.user.id != interaction.guild.owner_id:
-            await interaction.followup.send("❌ Hanya **Owner** yang bisa update status!", ephemeral=True); return
+        if not is_admin_or_owner(interaction.user, interaction.guild):
+            await interaction.followup.send("❌ Hanya **Admin & Owner** yang bisa update status!", ephemeral=True); return
         data = ticket_data.get(interaction.channel.id, {})
         if data: data["last_activity"] = time.time()
         await interaction.followup.send("🔄 Status diubah: **Sedang Diproses**")
@@ -359,8 +366,8 @@ class StatusView(discord.ui.View):
     @discord.ui.button(label="✅ Selesai", style=discord.ButtonStyle.success, custom_id="status_done")
     async def done(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if interaction.user.id != interaction.guild.owner_id:
-            await interaction.followup.send("❌ Hanya **Owner** yang bisa update status!", ephemeral=True); return
+        if not is_admin_or_owner(interaction.user, interaction.guild):
+            await interaction.followup.send("❌ Hanya **Admin & Owner** yang bisa update status!", ephemeral=True); return
         data = ticket_data.get(interaction.channel.id, {})
         if data: data["last_activity"] = time.time()
         await interaction.followup.send("✅ Status diubah: **Selesai** - Robux sudah masuk!")
@@ -371,8 +378,8 @@ class CloseView(discord.ui.View):
     @discord.ui.button(label="🔒 CLOSE TICKET", style=discord.ButtonStyle.danger, custom_id="close_ticket")
     async def close_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if interaction.user.id != interaction.guild.owner_id:
-            await interaction.followup.send("❌ Hanya **Owner** yang bisa menutup ticket ini!", ephemeral=True); return
+        if not is_admin_or_owner(interaction.user, interaction.guild):
+            await interaction.followup.send("❌ Hanya **Admin & Owner** yang bisa menutup ticket ini!", ephemeral=True); return
         channel = interaction.channel; data = ticket_data.get(channel.id)
         if not data:
             await interaction.followup.send("Ticket ditutup..."); await channel.delete(); return
@@ -390,7 +397,9 @@ class SaldoView(discord.ui.View):
         embed.set_footer(text="Mipi Store • Rafi Store")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+# === ORDER MODAL UDAH ADA NICKNAME ===
 class OrderModal(discord.ui.Modal, title="Pesanan Robux"):
+    nickname = discord.ui.TextInput(label="Nickname Roblox", placeholder="Nickname Roblox kamu", required=True)
     username = discord.ui.TextInput(label="Username", placeholder="UsernameRoblox", required=True)
     paket = discord.ui.TextInput(label="Paket yang dipilih", placeholder="Contoh: 500 Robux", required=True)
     pembayaran = discord.ui.TextInput(label="Metode Pembayaran", placeholder="QRIS", default="QRIS", required=True)
@@ -417,8 +426,8 @@ class OrderModal(discord.ui.Modal, title="Pesanan Robux"):
             promo_text = f"\n🏷️ **Kode Promo:** {k_up} (-Rp {diskon:,})".replace(",", ".") + f"\n💸 **Harga Setelah Diskon:** Rp {harga_akhir:,}".replace(",", ".")
         elif kode_input and err_promo:
             promo_text = f"\n⚠️ **Kode Promo:** {kode_input.upper()} - {err_promo} (Harga normal)\n💰 **Harga:** Rp {harga_awal:,}".replace(",", ".")
-        ticket_data[channel.id] = {"user_id": interaction.user.id, "username": interaction.user.name, "roblox_username": self.username.value, "pembayaran": self.pembayaran.value, "created_at": time.time(), "last_activity": time.time(), "number": ticket_counter, "paket": self.paket.value, "promo": kode_input, "harga_akhir": harga_akhir}
-        embed = discord.Embed(title=f"🎫 Ticket Baru - {interaction.user.name}", description=f"**Username Roblox:** {self.username.value}\n**Paket:** {self.paket.value}\n**Pembayaran:** {self.pembayaran.value}{promo_text}\n**Ticket #{ticket_counter}**\n\nSilahkan kirim bukti pembayaran QRIS disini ya 💗", color=0xff69b4)
+        ticket_data[channel.id] = {"user_id": interaction.user.id, "username": interaction.user.name, "nickname": self.nickname.value, "roblox_username": self.username.value, "pembayaran": self.pembayaran.value, "created_at": time.time(), "last_activity": time.time(), "number": ticket_counter, "paket": self.paket.value, "promo": kode_input, "harga_akhir": harga_akhir}
+        embed = discord.Embed(title=f"🎫 Ticket Baru - {interaction.user.name}", description=f"**Nickname Roblox:** {self.nickname.value}\n**Username Roblox:** {self.username.value}\n**Paket:** {self.paket.value}\n**Pembayaran:** {self.pembayaran.value}{promo_text}\n**Ticket #{ticket_counter}**\n\nSilahkan kirim bukti pembayaran QRIS disini ya 💗", color=0xff69b4)
         embed.set_image(url=WELCOME_URL)
         await channel.send(f"{interaction.user.mention} Halo! Selamat datang di MIPI STORE! 🌸", embed=embed, view=CloseView())
         embed_qris = discord.Embed(title="💳 Scan QRIS Disini", description="Silahkan scan QRIS ini untuk pembayaran ya 💗", color=0xff69b4)
@@ -430,7 +439,7 @@ class OrderModal(discord.ui.Modal, title="Pesanan Robux"):
         go_view.add_item(discord.ui.Button(label="🚀 BUKA TICKET SAYA", style=discord.ButtonStyle.link, url=f"https://discord.com/channels/{guild.id}/{channel.id}"))
         await interaction.response.send_message(f"✅ Ticket kamu sudah dibuat!\nPencet tombol dibawah untuk langsung masuk ke ticket kamu 👇\n👉 {channel.mention}", view=go_view, ephemeral=True)
         try:
-            await interaction.user.send(f"✅ Ticket MIPI STORE kamu sudah dibuat!\nLangsung klik disini ya: 👉 {channel.mention}\nLink: https://discord.com/channels/{guild.id}/{channel.id}\n\nKirim bukti QRIS kamu disana ya 💗")
+            await interaction.user.send(f"✅ Ticket MIPI STORE kamu sudah dibuat!\nNickname: {self.nickname.value}\nUsername: {self.username.value}\nPaket: {self.paket.value}\nLangsung klik disini ya: 👉 {channel.mention}\nLink: https://discord.com/channels/{guild.id}/{channel.id}\n\nKirim bukti QRIS kamu disana ya 💗")
         except: pass
 
 class OrderView(discord.ui.View):
