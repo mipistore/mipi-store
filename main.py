@@ -397,7 +397,6 @@ class SaldoView(discord.ui.View):
         embed.set_footer(text="Mipi Store • Rafi Store")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# === ORDER MODAL UDAH ADA NICKNAME ===
 class OrderModal(discord.ui.Modal, title="Pesanan Robux"):
     nickname = discord.ui.TextInput(label="Nickname Roblox", placeholder="Nickname Roblox kamu", required=True)
     username = discord.ui.TextInput(label="Username", placeholder="UsernameRoblox", required=True)
@@ -527,6 +526,36 @@ async def setup_saldo(interaction: discord.Interaction):
     embed = discord.Embed(title="💳 CEK SALDO - MIPI STORE", description="🌸 **MAU TAU UDAH HABIS BERAPA DI MIPI STORE?**\n\nPencet tombol **💳 CEK SALDO SAYA** dibawah ini!\n\nNanti bakal muncul:\n💰 Total Belanja kamu\n📦 Total Robux yang udah dibeli\n🧾 Total Transaksi kamu\n\nCuma kamu yang bisa liat, aman! Privasi terjaga 💗", color=0xff69b4)
     embed.set_footer(text="Mipi Store • Rafi Store • Check Saldo")
     await interaction.response.send_message(embed=embed, view=SaldoView())
+
+# ===== BARU - ADD SALDO MANUAL =====
+@bot.tree.command(name="add-saldo", description="Tambah saldo manual ke buyer (Admin / Owner only)")
+async def add_saldo(interaction: discord.Interaction, user: discord.User, robux: int):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    if robux <= 0:
+        await interaction.response.send_message("❌ Jumlah Robux harus lebih dari 0!", ephemeral=True); return
+    harga = PRICELIST.get(robux, robux * 165)
+    # Masukkin ke leaderboard bulan ini biar /saldo + /leaderboard ke-update
+    add_to_leaderboard(user.id, user.name, f"{robux} Robux")
+    total_rp, total_robux, total_transaksi = get_total_belanja(user.id)
+    harga_str = f"Rp {harga:,}".replace(",", ".")
+    total_str = f"Rp {total_rp:,}".replace(",", ".")
+    embed = discord.Embed(color=0x57f287)
+    embed.description = f"✅ **Saldo {user.mention} ditambah!**\n\n📦 **+{robux:,} R$**\n💰 **+{harga_str}**\n\n🧾 **Total Transaksi Sekarang:** {total_transaksi}x\n📦 **Total Robux Sekarang:** {total_robux:,} R$\n💰 **Total Belanja Sekarang:** {total_str}"
+    embed.set_footer(text="MIPI STORE • Add Saldo Manual")
+    await interaction.response.send_message(embed=embed)
+    try:
+        await user.send(f"✅ Saldo kamu di **MIPI STORE** ditambah!\n\n📦 +{robux:,} R$\n💰 +{harga_str}\n\nCek dengan `/saldo` ya! 💗")
+    except: pass
+
+@bot.command(name="add-saldo")
+async def add_saldo_prefix(ctx, user: discord.User, robux: int):
+    if not is_admin_or_owner(ctx.author, ctx.guild):
+        await ctx.send("❌ Hanya Admin / Owner!"); return
+    harga = PRICELIST.get(robux, robux * 165)
+    add_to_leaderboard(user.id, user.name, f"{robux} Robux")
+    harga_str = f"Rp {harga:,}".replace(",", ".")
+    await ctx.send(f"✅ **Saldo {user.mention} ditambah!**\n📦 +{robux:,} R$\n💰 +{harga_str}")
 
 @bot.tree.command(name="buat-promo", description="Buat kode promo diskon (Owner only)")
 async def buat_promo(interaction: discord.Interaction, kode: str, diskon: int, tipe: str = "nominal", max_pakai: int = 10):
