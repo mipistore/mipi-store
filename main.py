@@ -25,7 +25,7 @@ ticket_counter = 0
 user_ratings = {}
 user_last_ticket = {}
 
-PRICELIST = {100: 16500, 200: 33000, 300: 49500, 400: 66000, 500: 78000, 1000: 155000, 2000: 310000, 3000: 465000, 4000: 620000, 5000: 775000}
+PRICELIST = {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000}
 
 LEADERBOARD_FILE = "leaderboard.json"
 
@@ -44,7 +44,7 @@ def add_to_leaderboard(user_id, username, paket_text):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
     if not m: return
     jumlah = int(m.group(1))
-    harga = PRICELIST.get(jumlah, jumlah * 165)
+    harga = PRICELIST.get(jumlah, jumlah * 150)
     data = load_leaderboard()
     bulan = datetime.now().strftime("%Y-%m")
     if bulan not in data:
@@ -166,9 +166,9 @@ def is_banned_selling(text):
 
 def hitung_harga(paket_text):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
-    if not m: return "500", "Rp 78.000"
+    if not m: return "500", "Rp 75.000"
     jumlah = int(m.group(1))
-    harga = PRICELIST.get(jumlah, jumlah * 165)
+    harga = PRICELIST.get(jumlah, jumlah * 150)
     return str(jumlah), f"Rp {harga:,}".replace(",", ".")
 
 def get_status_channel(guild):
@@ -412,7 +412,7 @@ class OrderModal(discord.ui.Modal, title="Pesanan Robux"):
         channel = await guild.create_text_channel(name=f"robux-via-username-{ticket_counter}-{interaction.user.name}", overwrites=overwrites, category=category)
         m_temp = re.search(r'(\d+)', str(self.paket.value).replace('.', ''))
         jumlah_int = int(m_temp.group(1)) if m_temp else 500
-        harga_awal = PRICELIST.get(jumlah_int, jumlah_int * 165)
+        harga_awal = PRICELIST.get(jumlah_int, jumlah_int * 150)
         kode_input = self.kode_promo.value.strip() if self.kode_promo.value else ""
         harga_akhir, diskon, err_promo = cek_promo(kode_input, harga_awal, jumlah_int)
         promo_text = ""
@@ -477,7 +477,7 @@ async def on_ready():
 async def ticket(interaction: discord.Interaction):
     embed1 = discord.Embed(title="Mipi Store - Order Robux 💗", description="🌸 **ROBUX VIA USERNAME**\nFast Process • Aman • Instan\n\nSyarat top up via username:\n>> SUDAH 18+\n>> SUDAH TERVERIFIKASI 2 LANGKAH", color=0xff69b4)
     embed1.set_image(url=WELCOME_URL)
-    embed2 = discord.Embed(title="💰 PRICELIST ROBUX FAST SEND", description="500 = Rp 78.000\n1000 = Rp 155.000\n2000 = Rp 310.000\n3000 = Rp 465.000\n4000 = Rp 620.000\n5000 = Rp 775.000\n\n🌸 **Robux Eceran**\n100 = Rp 16.500\n200 = Rp 33.000\n300 = Rp 49.500\n400 = Rp 66.000\n\n🛒 **Cara Order**\nClick tombol ORDER ROBUX dibawah, isi formulir, lalu tunggu admin. Pembayaran **hanya QRIS**.", color=0xff69b4)
+    embed2 = discord.Embed(title="💰 PRICELIST ROBUX FAST SEND", description="500 = Rp 75.000\n1000 = Rp 150.000\n2000 = Rp 300.000\n3000 = Rp 450.000\n4000 = Rp 600.000\n5000 = Rp 750.000\n\n🌸 **Robux Eceran**\n100 = Rp 16.000\n200 = Rp 32.000\n300 = Rp 48.000\n400 = Rp 64.000\n\n🛒 **Cara Order**\nClick tombol ORDER ROBUX dibawah, isi formulir, lalu tunggu admin. Pembayaran **hanya QRIS**.", color=0xff69b4)
     embed2.set_image(url=QRIS_URL)
     embed2.set_footer(text="Mipi Store • Rafi Store")
     await interaction.response.send_message(embed=embed1)
@@ -527,15 +527,13 @@ async def setup_saldo(interaction: discord.Interaction):
     embed.set_footer(text="Mipi Store • Rafi Store • Check Saldo")
     await interaction.response.send_message(embed=embed, view=SaldoView())
 
-# ===== BARU - ADD SALDO MANUAL =====
 @bot.tree.command(name="add-saldo", description="Tambah saldo manual ke buyer (Admin / Owner only)")
 async def add_saldo(interaction: discord.Interaction, user: discord.User, robux: int):
     if not is_admin_or_owner(interaction.user, interaction.guild):
         await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
     if robux <= 0:
         await interaction.response.send_message("❌ Jumlah Robux harus lebih dari 0!", ephemeral=True); return
-    harga = PRICELIST.get(robux, robux * 165)
-    # Masukkin ke leaderboard bulan ini biar /saldo + /leaderboard ke-update
+    harga = PRICELIST.get(robux, robux * 150)
     add_to_leaderboard(user.id, user.name, f"{robux} Robux")
     total_rp, total_robux, total_transaksi = get_total_belanja(user.id)
     harga_str = f"Rp {harga:,}".replace(",", ".")
@@ -552,7 +550,7 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
 async def add_saldo_prefix(ctx, user: discord.User, robux: int):
     if not is_admin_or_owner(ctx.author, ctx.guild):
         await ctx.send("❌ Hanya Admin / Owner!"); return
-    harga = PRICELIST.get(robux, robux * 165)
+    harga = PRICELIST.get(robux, robux * 150)
     add_to_leaderboard(user.id, user.name, f"{robux} Robux")
     harga_str = f"Rp {harga:,}".replace(",", ".")
     await ctx.send(f"✅ **Saldo {user.mention} ditambah!**\n📦 +{robux:,} R$\n💰 +{harga_str}")
@@ -599,7 +597,7 @@ async def cek_promo_cmd(interaction: discord.Interaction, kode: str, paket: str 
     sisa = p.get("max", 999) - p.get("dipakai", 0)
     m = re.search(r'(\d+)', str(paket).replace('.', ''))
     jumlah = int(m.group(1)) if m else 500
-    harga_awal = PRICELIST.get(jumlah, jumlah * 165)
+    harga_awal = PRICELIST.get(jumlah, jumlah * 150)
     harga_baru, diskon, err = cek_promo(kode_up, harga_awal, jumlah)
     if err:
         await interaction.response.send_message(err, ephemeral=True); return
