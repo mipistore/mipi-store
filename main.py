@@ -680,13 +680,14 @@ async def ping(interaction: discord.Interaction):
 async def ping_prefix(ctx):
     await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
 
-# ========== FIX CHECKAVATAR V3 - Economy + Catalog Fallback + Anti Rate Limit ==========
+# ========== CHECKAVATAR V4 - TOOLBOX API (BISA BACA SEMUA ASSET, TERMASUK OFF-SALE / BUNDLE) ==========
 @bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
 async def checkavatar(interaction: discord.Interaction, username: str):
     await interaction.response.defer()
     try:
-        async with aiohttp.ClientSession() as s:
-            async with s.post("https://users.roblox.com/v1/usernames/users", json={"usernames": [username], "excludeBannedUsers": True}) as r:
+        headers = {"User-Agent": "Mozilla/5.0 MIPI-STORE-Bot"}
+        async with aiohttp.ClientSession(headers=headers) as s:
+            async with s.post("https://users.roproxy.com/v1/usernames/users", json={"usernames": [username], "excludeBannedUsers": True}) as r:
                 data = await r.json()
                 if not data.get("data"):
                     await interaction.followup.send(f"❌ Username `{username}` tidak ditemukan!")
@@ -695,64 +696,73 @@ async def checkavatar(interaction: discord.Interaction, username: str):
                 user_id = user["id"]
                 display = user.get("displayName", username)
                 uname = user.get("name", username)
-            async with s.get(f"https://users.roblox.com/v1/users/{user_id}") as r:
+            async with s.get(f"https://users.roproxy.com/v1/users/{user_id}") as r:
                 info = await r.json()
                 created = info.get("created", "")
                 try: tgl = datetime.fromisoformat(created.replace("Z", "+00:00")).strftime("%d %B %Y")
                 except: tgl = created
-            async with s.get(f"https://avatar.roblox.com/v1/users/{user_id}/avatar") as r:
+            async with s.get(f"https://avatar.roproxy.com/v1/users/{user_id}/avatar") as r:
                 av = await r.json()
                 tipe = av.get("playerAvatarType", "R15")
                 assets = av.get("assets", [])
-            # --- AMBIL NAMA: Economy dulu, Catalog fallback ---
             names = {}
-            sem = asyncio.Semaphore(5)
-            async def get_nama_economy(asset_id):
-                async with sem:
-                    try:
-                        async with s.get(f"https://economy.roblox.com/v2/assets/{asset_id}/details") as r:
-                            if r.status == 200:
-                                d = await r.json()
-                                if d.get("Name"):
-                                    return asset_id, d["Name"]
-                    except: pass
-                    return asset_id, None
-            hasil = await asyncio.gather(*[get_nama_economy(a["id"]) for a in assets])
-            names = {aid: nm for aid, nm in hasil if nm}
-            sisa = [a["id"] for a in assets if a["id"] not in names]
-            for i in range(0, len(sisa), 10):
-                batch = sisa[i:i+10]
+            asset_ids = [str(a["id"]) for a in assets]
+            for i in range(0, len(asset_ids), 50):
+                batch = asset_ids[i:i+50]
+                ids_str = ",".join(batch)
                 try:
-                    async with s.post("https://catalog.roblox.com/v1/catalog/items/details", json={"items": [{"id": x, "itemType": "Asset"} for x in batch]}) as r:
+                    async with s.get(f"https://apis.roproxy.com/toolbox-service/v1/items/details?assetIds={ids_str}") as r:
                         if r.status == 200:
                             det = await r.json()
-                            for d in det.get("data", []):
-                                if d.get("name"):
-                                    names[d["id"]] = d["name"]
+                            items = det.get("data", det) if isinstance(det, dict) else det
+                            for it in items:
+                                asset = it.get("asset", it) if isinstance(it, dict) else {}
+                                aid = asset.get("id") or it.get("id") or it.get("assetId")
+                                nm = asset.get("name") or it.get("name")
+                                if aid and nm:
+                                    names[int(aid)] = nm
                 except: pass
-                await asyncio.sleep(0.2)
+                sisa_batch = [int(x) for x in batch if int(x) not in names]
+                if sisa_batch:
+                    try:
+                        async with s.post("https://catalog.roproxy.com/v1/catalog/items/details", json={"items": [{"id": x, "itemType": "Asset"} for x in sisa_batch]}) as r:
+                            if r.status == 200:
+                                det = await r.json()
+                                for d in det.get("data", []):
+                                    if d.get("name"):
+                                        names[d["id"]] = d["name"]
+                    except: pass
             aksesoris, pakaian, tubuh, animasi = [], [], [], []
             for a in assets:
                 nama = names.get(a["id"], f"Asset {a['id']}")
                 t = a.get("assetType", {}).get("name", "")
-                if t in ["Hat", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory", "Gear"]:
+                if t in ["Hat", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory", "Gear", "Hair", "Face"]:
                     aksesoris.append(nama)
-                elif t in ["Shirt", "Pants", "TShirt", "Jacket", "Sweater", "Shorts", "DressSkirt", "Skirt"]:
+                elif t in ["Shirt", "Pants", "TShirt", "Jacket", "Sweater", "Shorts", "DressSkirt", "Skirt", "ShirtGraphic"]:
                     pakaian.append(nama)
-                elif t in ["Face", "Head", "Torso", "RightArm", "LeftArm", "RightLeg", "LeftLeg"]:
+                elif t in ["Head", "Torso", "RightArm", "LeftArm", "RightLeg", "LeftLeg", "DynamicHead"]:
                     tubuh.append(nama)
-                elif "Animation" in t or "Emote" in t or t in ["Run", "Walk", "Jump", "Fall", "Swim", "Climb", "Idle", "Mood"]:
+                elif "Animation" in t or "Emote" in t or t in ["Run", "Walk", "Jump", "Fall", "Swim", "Climb", "Idle", "Mood", "Animation"]:
                     animasi.append(nama)
                 else:
-                    aksesoris.append(nama)
-            async with s.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as r:
+                    if "Arm" in nama or "Leg" in nama or "Torso" in nama or "Head" in nama or "Face" in nama or "Doll" in nama:
+                        tubuh.append(nama)
+                    elif "Run" in nama or "Walk" in nama or "Jump" in nama or "Fall" in nama or "Swim" in nama or "Idle" in nama or "Mood" in nama or "Animation" in nama or "Pack" in nama:
+                        animasi.append(nama)
+                    else:
+                        aksesoris.append(nama)
+            async with s.get(f"https://thumbnails.roproxy.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as r:
                 thumb = await r.json()
                 avatar_url = thumb["data"][0]["imageUrl"] if thumb.get("data") else None
-            desc = f"👤 **Profil:** {uname}\n📛 **Display:** {display}\n🆔 **User ID:** {user_id}\n📅 **Dibuat:** {tgl}\n🎭 **Tipe:** {tipe}\n\n"
-            desc += f"🎩 **Aksesoris**\n" + ("".join([f"• {x}\n" for x in aksesoris[:15]]) if aksesoris else "• -\n")
-            desc += f"\n👕 **Pakaian**\n" + ("".join([f"• {x}\n" for x in pakaian[:10]]) if pakaian else "• -\n")
-            desc += f"\n🦵 **Tubuh & Wajah**\n" + ("".join([f"• {x}\n" for x in tubuh[:10]]) if tubuh else "• -\n")
-            desc += f"\n🎬 **Animasi**\n" + ("".join([f"• {x}\n" for x in animasi[:10]]) if animasi else "• -\n")
+            desc = f"👤 **Profil Roblox:** {uname}\n"
+            desc += f"📛 **Display Name:**\n{display}\n"
+            desc += f"🆔 **User ID:**\n{user_id}\n"
+            desc += f"📅 **Tanggal Dibuat:**\n{tgl}\n"
+            desc += f"🎭 **Tipe Avatar:**\n{tipe}\n\n"
+            desc += f"🎩 **Aksesoris**\n" + ("".join([f"• {x}\n" for x in aksesoris]) if aksesoris else "• -\n")
+            desc += f"\n👕 **Pakaian**\n" + ("".join([f"• {x}\n" for x in pakaian]) if pakaian else "• -\n")
+            desc += f"\n🦵 **Tubuh & Wajah**\n" + ("".join([f"• {x}\n" for x in tubuh]) if tubuh else "• -\n")
+            desc += f"\n🎬 **Animasi & Bundel**\n" + ("".join([f"• {x}\n" for x in animasi]) if animasi else "• -\n")
             e = discord.Embed(title=f"Profil Roblox: {uname}", description=desc, color=0xFF69B4)
             if avatar_url: e.set_image(url=avatar_url)
             e.set_footer(text="MIPI STORE • /checkavatar")
