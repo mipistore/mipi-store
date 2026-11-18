@@ -8,6 +8,7 @@ import re
 import asyncio
 import json
 import random
+import aiohttp
 from datetime import datetime
 
 intents = discord.Intents.default()
@@ -678,5 +679,105 @@ async def ping(interaction: discord.Interaction):
 @bot.command(name="ping")
 async def ping_prefix(ctx):
     await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
+
+# ========== TAMBAHAN BARU - JANGAN DIHAPUS - checkavatar + cekrbx ==========
+@bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
+async def checkavatar(interaction: discord.Interaction, username: str):
+    await interaction.response.defer()
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.post("https://users.roblox.com/v1/usernames/users", json={"usernames": [username], "excludeBannedUsers": True}) as r:
+                data = await r.json()
+                if not data.get("data"):
+                    await interaction.followup.send(f"❌ Username `{username}` tidak ditemukan!")
+                    return
+                user = data["data"][0]
+                user_id = user["id"]
+                display = user.get("displayName", username)
+                uname = user.get("name", username)
+            async with s.get(f"https://users.roblox.com/v1/users/{user_id}") as r:
+                info = await r.json()
+                created = info.get("created", "")
+                try: tgl = datetime.fromisoformat(created.replace("Z", "+00:00")).strftime("%d %B %Y")
+                except: tgl = created
+            async with s.get(f"https://avatar.roblox.com/v1/users/{user_id}/avatar") as r:
+                av = await r.json()
+                tipe = av.get("playerAvatarType", "R15")
+                assets = av.get("assets", [])
+            asset_ids = [a["id"] for a in assets]
+            names = {}
+            if asset_ids:
+                async with s.post("https://catalog.roblox.com/v1/catalog/items/details", json={"items": [{"id": i, "itemType": "Asset"} for i in asset_ids]}) as r:
+                    det = await r.json()
+                    for d in det.get("data", []):
+                        names[d["id"]] = d["name"]
+            aksesoris, pakaian, tubuh, animasi = [], [], [], []
+            for a in assets:
+                nama = names.get(a["id"], f"Asset {a['id']}")
+                t = a.get("assetType", {}).get("name", "")
+                if t in ["Hat", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory", "Gear"]:
+                    aksesoris.append(nama)
+                elif t in ["Shirt", "Pants", "TShirt", "Jacket", "Sweater", "Shorts", "DressSkirt", "Skirt"]:
+                    pakaian.append(nama)
+                elif t in ["Face", "Head", "Torso", "RightArm", "LeftArm", "RightLeg", "LeftLeg"]:
+                    tubuh.append(nama)
+                elif "Animation" in t or "Emote" in t or t in ["Run", "Walk", "Jump", "Fall", "Swim", "Climb", "Idle", "Mood"]:
+                    animasi.append(nama)
+                else:
+                    aksesoris.append(nama)
+            async with s.get(f"https://thumbnails.roblox.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as r:
+                thumb = await r.json()
+                avatar_url = thumb["data"][0]["imageUrl"] if thumb.get("data") else None
+            desc = f"👤 **Profil Roblox:** {uname}\n📛 **Display Name:** {display}\n🆔 **User ID:** {user_id}\n📅 **Tanggal Dibuat:** {tgl}\n🎭 **Tipe Avatar:** {tipe}\n\n"
+            desc += f"🎩 **Aksesoris**\n" + "".join([f"• {x}\n" for x in aksesoris]) or "• -\n"
+            desc += f"\n👕 **Pakaian**\n" + "".join([f"• {x}\n" for x in pakaian]) or "• -\n"
+            desc += f"\n🦵 **Tubuh & Wajah**\n" + "".join([f"• {x}\n" for x in tubuh]) or "• -\n"
+            desc += f"\n🎬 **Animasi & Bundel**\n" + "".join([f"• {x}\n" for x in animasi]) or "• -\n"
+            e = discord.Embed(title=f"Profil Roblox: {uname}", description=desc, color=0xFF69B4)
+            if avatar_url: e.set_image(url=avatar_url)
+            e.set_footer(text="MIPI STORE • /checkavatar")
+            await interaction.followup.send(embed=e)
+    except Exception as ex:
+        await interaction.followup.send(f"❌ Gagal cek avatar: {ex}")
+
+@bot.tree.command(name="cekrbx", description="Link untuk mengecek riwayat transaksi Robux Gamepass")
+async def cekrbx(interaction: discord.Interaction, username: str = None, link_gamepass: str = None):
+    await interaction.response.defer(ephemeral=True)
+    e = discord.Embed(title="🔍 CEK RIWAYAT TRANSAKSI ROBUX - MIPI STORE", description="Cek sendiri Robux kamu udah masuk / belum, tanpa nunggu admin! 💗", color=0xFF69B4)
+    if username:
+        try:
+            async with aiohttp.ClientSession() as s:
+                async with s.post("https://users.roblox.com/v1/usernames/users", json={"usernames": [username], "excludeBannedUsers": True}) as r:
+                    data = await r.json()
+                    if not data.get("data"):
+                        await interaction.followup.send(f"❌ Username `{username}` tidak ditemukan!", ephemeral=True); return
+                    user_id = data["data"][0]["id"]
+                    display = data["data"][0].get("displayName", username)
+                gamepasses = []
+                async with s.get(f"https://games.roblox.com/v2/users/{user_id}/games?limit=50&sortOrder=Asc") as r:
+                    games = await r.json()
+                    for g in games.get("data", [])[:5]:
+                        async with s.get(f"https://games.roblox.com/v1/games/{g.get('id')}/game-passes?limit=50&sortOrder=Asc") as r2:
+                            gp = await r2.json()
+                            for p in gp.get("data", []):
+                                gamepasses.append(f"• **{p['name']}** - {p.get('price', 0)} R$ | ID: `{p['id']}`")
+                e.add_field(name=f"👤 Akun: {username} ({display})", value=f"🆔 User ID: `{user_id}`\n\n**🎫 Gamepass:**\n" + ("\n".join(gamepasses[:10]) if gamepasses else "• Tidak ada / Private"), inline=False)
+        except Exception as ex:
+            e.add_field(name="⚠️ Info", value=f"Gagal ambil gamepass: {ex}", inline=False)
+    if link_gamepass:
+        m = re.search(r'(\d+)', link_gamepass)
+        if m:
+            gp_id = m.group(1)
+            e.add_field(name="🎫 Gamepass yang dicek", value=f"ID: `{gp_id}`\nLink: https://www.roblox.com/game-pass/{gp_id}", inline=False)
+            try:
+                async with aiohttp.ClientSession() as s:
+                    async with s.get(f"https://economy.roblox.com/v1/game-pass/{gp_id}/details") as r:
+                        d = await r.json()
+                        e.add_field(name="📊 Detail Gamepass", value=f"Nama: **{d.get('Name', '-')}**\nHarga: **{d.get('PriceInRobux', 0)} R$**\nPenjual: **{d.get('SellerName', '-')}**\nTerjual: **{d.get('Sales', 0)}x**", inline=False)
+            except: pass
+    e.add_field(name="🔗 LINK CEK RESMI ROBLOX", value="1. **Cek Transaksi:**\nhttps://www.roblox.com/transactions\n\n2. **Cek Pending Robux:**\nhttps://www.roblox.com/transactions#pending-robux\n\n3. **Cek Saldo:**\nhttps://www.roblox.com/my/account#!/info", inline=False)
+    e.add_field(name="📖 CARA CEK", value="1. Login Roblox di browser\n2. Buka link Transaksi di atas\n3. Pilih Penjualan / Pembelian\n4. Kalau Pending, tunggu 3-7 hari (Hold Roblox)\n5. Kalau udah masuk, cek di pojok kanan atas", inline=False)
+    e.set_footer(text="MIPI STORE • Kalau belum masuk 3 hari, buka tiket di #open-ticket")
+    await interaction.followup.send(embed=e, ephemeral=True)
 
 bot.run(os.getenv("DISCORD_TOKEN"))
