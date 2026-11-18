@@ -680,7 +680,7 @@ async def ping(interaction: discord.Interaction):
 async def ping_prefix(ctx):
     await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
 
-# ========== CHECKAVATAR V5 - PER ASSET 3x TRY (Economy -> ProductInfo -> Catalog) ==========
+# ========== CHECKAVATAR V6 - SEMUA BISA DIPENCET KE ROBLOX ==========
 @bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
 async def checkavatar(interaction: discord.Interaction, username: str):
     await interaction.response.defer()
@@ -733,13 +733,32 @@ async def checkavatar(interaction: discord.Interaction, username: str):
                     return aid, None
             hasil = await asyncio.gather(*[get_nama(a["id"]) for a in assets])
             for aid, nm in hasil:
-                if nm:
-                    names[aid] = nm
+                if nm: names[aid] = nm
+            def link(nama, aid):
+                slug = re.sub(r'[^a-zA-Z0-9\- ]', '', nama).strip().replace(' ', '-')
+                nama_bersih = nama.replace('[', '').replace(']', '').replace('(', '').replace(')', '')
+                return f"[{nama_bersih}](https://www.roblox.com/catalog/{aid}/{slug})"
             aksesoris, pakaian, tubuh, animasi = [], [], [], []
             for a in assets:
-                nama = names.get(a["id"], f"Asset {a['id']}")
+                aid = a["id"]
+                nama_asli = names.get(aid, f"Asset {aid}")
+                nama = link(nama_asli, aid)
                 t = a.get("assetType", {}).get("name", "")
-                if t in ["Hat", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory", "Gear", "Hair", "Face"]:
+                tid = a.get("assetType", {}).get("id", 0)
+                low = nama_asli.lower()
+                if any(x in low for x in ["skirt", "dress", "top ", "top and", "shirt", "tshirt", "t-shirt", "pants", "shorts", "jeans", "jacket", "hoodie", "sweater", "cardigan", "blouse", "outfit", "uniform", "pajama", "bikini", "swimsuit", "leggings", "vest"]):
+                    pakaian.append(nama)
+                elif any(x in low for x in ["doll", "torso", "- right arm", "- left arm", "- right leg", "- left leg", "dynamic head"]) and "hair" not in low and "hat" not in low and "glasses" not in low:
+                    tubuh.append(nama)
+                elif any(x in low for x in ["run", "walk", "jump", "fall", "swim", "climb", "idle", "mood", "animation", "emote", "dance", "pack"]):
+                    animasi.append(nama)
+                elif tid in [11, 12, 2]:
+                    pakaian.append(nama)
+                elif tid in [17, 18, 27, 28, 29, 30, 31]:
+                    tubuh.append(nama)
+                elif tid in [61, 62, 63, 64]:
+                    animasi.append(nama)
+                elif t in ["Hat", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory", "Gear", "Hair", "Face"]:
                     aksesoris.append(nama)
                 elif t in ["Shirt", "Pants", "TShirt", "Jacket", "Sweater", "Shorts", "DressSkirt", "Skirt", "ShirtGraphic"]:
                     pakaian.append(nama)
@@ -748,28 +767,31 @@ async def checkavatar(interaction: discord.Interaction, username: str):
                 elif "Animation" in t or "Emote" in t or t in ["Run", "Walk", "Jump", "Fall", "Swim", "Climb", "Idle", "Mood", "Animation"]:
                     animasi.append(nama)
                 else:
-                    if "Arm" in nama or "Leg" in nama or "Torso" in nama or "Head" in nama or "Face" in nama or "Doll" in nama:
-                        tubuh.append(nama)
-                    elif "Run" in nama or "Walk" in nama or "Jump" in nama or "Fall" in nama or "Swim" in nama or "Idle" in nama or "Mood" in nama or "Animation" in nama or "Pack" in nama:
-                        animasi.append(nama)
-                    else:
-                        aksesoris.append(nama)
+                    aksesoris.append(nama)
             async with s.get(f"https://thumbnails.roproxy.com/v1/users/avatar?userIds={user_id}&size=720x720&format=Png&isCircular=false") as r:
                 thumb = await r.json()
                 avatar_url = thumb["data"][0]["imageUrl"] if thumb.get("data") else None
-            desc = f"👤 **Profil Roblox:** {uname}\n"
-            desc += f"📛 **Display Name:**\n{display}\n"
-            desc += f"🆔 **User ID:**\n{user_id}\n"
-            desc += f"📅 **Tanggal Dibuat:**\n{tgl}\n"
-            desc += f"🎭 **Tipe Avatar:**\n{tipe}\n\n"
+            profil_url = f"https://www.roblox.com/users/{user_id}/profile"
+            profil_link = f"[{uname}]({profil_url})"
+            desc = f"🔍 **Profil Roblox:** {profil_link}\n"
+            desc += f"👤 **Display Name**\n{display}\n"
+            desc += f"🆔 **User ID**\n{user_id}\n"
+            desc += f"📅 **Tanggal Dibuat**\n{tgl}\n"
+            desc += f"🏃 **Tipe Avatar**\n{tipe}\n\n"
             desc += f"🎩 **Aksesoris**\n" + ("".join([f"• {x}\n" for x in aksesoris]) if aksesoris else "• -\n")
             desc += f"\n👕 **Pakaian**\n" + ("".join([f"• {x}\n" for x in pakaian]) if pakaian else "• -\n")
-            desc += f"\n🦵 **Tubuh & Wajah**\n" + ("".join([f"• {x}\n" for x in tubuh]) if tubuh else "• -\n")
+            desc += f"\n👤 **Tubuh & Wajah**\n" + ("".join([f"• {x}\n" for x in tubuh]) if tubuh else "• -\n")
             desc += f"\n🎬 **Animasi & Bundel**\n" + ("".join([f"• {x}\n" for x in animasi]) if animasi else "• -\n")
+            if len(desc) > 4000:
+                desc = desc[:3950] + "\n... (terlalu banyak item)"
             e = discord.Embed(title=f"Profil Roblox: {uname}", description=desc, color=0xFF69B4)
+            e.url = profil_url
             if avatar_url: e.set_image(url=avatar_url)
-            e.set_footer(text="MIPI STORE • /checkavatar")
-            await interaction.followup.send(embed=e)
+            e.set_footer(text="MIPI STORE • /checkavatar • Klik nama item / profil buat buka di Roblox")
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="👤 Buka Profil Roblox", style=discord.ButtonStyle.link, url=profil_url, emoji="🔍"))
+            view.add_item(discord.ui.Button(label="🎮 Lihat Avatar 3D", style=discord.ButtonStyle.link, url=profil_url))
+            await interaction.followup.send(embed=e, view=view)
     except Exception as ex:
         await interaction.followup.send(f"❌ Gagal cek avatar: {ex}")
 
