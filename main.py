@@ -680,7 +680,7 @@ async def ping(interaction: discord.Interaction):
 async def ping_prefix(ctx):
     await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
 
-# ========== CHECKAVATAR V4 - TOOLBOX API (BISA BACA SEMUA ASSET, TERMASUK OFF-SALE / BUNDLE) ==========
+# ========== CHECKAVATAR V5 - PER ASSET 3x TRY (Economy -> ProductInfo -> Catalog) ==========
 @bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
 async def checkavatar(interaction: discord.Interaction, username: str):
     await interaction.response.defer()
@@ -706,32 +706,35 @@ async def checkavatar(interaction: discord.Interaction, username: str):
                 tipe = av.get("playerAvatarType", "R15")
                 assets = av.get("assets", [])
             names = {}
-            asset_ids = [str(a["id"]) for a in assets]
-            for i in range(0, len(asset_ids), 50):
-                batch = asset_ids[i:i+50]
-                ids_str = ",".join(batch)
-                try:
-                    async with s.get(f"https://apis.roproxy.com/toolbox-service/v1/items/details?assetIds={ids_str}") as r:
-                        if r.status == 200:
-                            det = await r.json()
-                            items = det.get("data", det) if isinstance(det, dict) else det
-                            for it in items:
-                                asset = it.get("asset", it) if isinstance(it, dict) else {}
-                                aid = asset.get("id") or it.get("id") or it.get("assetId")
-                                nm = asset.get("name") or it.get("name")
-                                if aid and nm:
-                                    names[int(aid)] = nm
-                except: pass
-                sisa_batch = [int(x) for x in batch if int(x) not in names]
-                if sisa_batch:
+            sem = asyncio.Semaphore(8)
+            async def get_nama(aid):
+                async with sem:
                     try:
-                        async with s.post("https://catalog.roproxy.com/v1/catalog/items/details", json={"items": [{"id": x, "itemType": "Asset"} for x in sisa_batch]}) as r:
+                        async with s.get(f"https://economy.roproxy.com/v2/assets/{aid}/details") as r:
                             if r.status == 200:
-                                det = await r.json()
-                                for d in det.get("data", []):
-                                    if d.get("name"):
-                                        names[d["id"]] = d["name"]
+                                d = await r.json()
+                                if d.get("Name"):
+                                    return aid, d["Name"]
                     except: pass
+                    try:
+                        async with s.get(f"https://api.roproxy.com/marketplace/productinfo?assetId={aid}") as r:
+                            if r.status == 200:
+                                d = await r.json()
+                                if d.get("Name"):
+                                    return aid, d["Name"]
+                    except: pass
+                    try:
+                        async with s.post("https://catalog.roproxy.com/v1/catalog/items/details", json={"items": [{"id": aid, "itemType": "Asset"}]}) as r:
+                            if r.status == 200:
+                                d = await r.json()
+                                if d.get("data") and d["data"][0].get("name"):
+                                    return aid, d["data"][0]["name"]
+                    except: pass
+                    return aid, None
+            hasil = await asyncio.gather(*[get_nama(a["id"]) for a in assets])
+            for aid, nm in hasil:
+                if nm:
+                    names[aid] = nm
             aksesoris, pakaian, tubuh, animasi = [], [], [], []
             for a in assets:
                 nama = names.get(a["id"], f"Asset {a['id']}")
