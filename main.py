@@ -680,7 +680,7 @@ async def ping(interaction: discord.Interaction):
 async def ping_prefix(ctx):
     await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
 
-# ========== TAMBAHAN BARU - FIX CHECKAVATAR ANTI ASSET + CEKRBX + SETUP ESTETIK ==========
+# ========== FIX CHECKAVATAR V3 - Economy + Catalog Fallback + Anti Rate Limit ==========
 @bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
 async def checkavatar(interaction: discord.Interaction, username: str):
     await interaction.response.defer()
@@ -704,20 +704,36 @@ async def checkavatar(interaction: discord.Interaction, username: str):
                 av = await r.json()
                 tipe = av.get("playerAvatarType", "R15")
                 assets = av.get("assets", [])
-            async def get_nama(asset_id):
-                try:
-                    async with s.get(f"https://api.roblox.com/marketplace/productinfo?assetId={asset_id}") as r:
-                        d = await r.json()
-                        nama = d.get("Name")
-                        if nama: return asset_id, nama
-                except: pass
-                return asset_id, None
-            hasil = await asyncio.gather(*[get_nama(a["id"]) for a in assets])
+            # --- AMBIL NAMA: Economy dulu, Catalog fallback ---
+            names = {}
+            sem = asyncio.Semaphore(5)
+            async def get_nama_economy(asset_id):
+                async with sem:
+                    try:
+                        async with s.get(f"https://economy.roblox.com/v2/assets/{asset_id}/details") as r:
+                            if r.status == 200:
+                                d = await r.json()
+                                if d.get("Name"):
+                                    return asset_id, d["Name"]
+                    except: pass
+                    return asset_id, None
+            hasil = await asyncio.gather(*[get_nama_economy(a["id"]) for a in assets])
             names = {aid: nm for aid, nm in hasil if nm}
+            sisa = [a["id"] for a in assets if a["id"] not in names]
+            for i in range(0, len(sisa), 10):
+                batch = sisa[i:i+10]
+                try:
+                    async with s.post("https://catalog.roblox.com/v1/catalog/items/details", json={"items": [{"id": x, "itemType": "Asset"} for x in batch]}) as r:
+                        if r.status == 200:
+                            det = await r.json()
+                            for d in det.get("data", []):
+                                if d.get("name"):
+                                    names[d["id"]] = d["name"]
+                except: pass
+                await asyncio.sleep(0.2)
             aksesoris, pakaian, tubuh, animasi = [], [], [], []
             for a in assets:
-                nama = names.get(a["id"])
-                if not nama: continue
+                nama = names.get(a["id"], f"Asset {a['id']}")
                 t = a.get("assetType", {}).get("name", "")
                 if t in ["Hat", "HairAccessory", "FaceAccessory", "NeckAccessory", "ShoulderAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory", "Gear"]:
                     aksesoris.append(nama)
