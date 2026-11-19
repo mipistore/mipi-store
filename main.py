@@ -345,7 +345,7 @@ class OrderView(discord.ui.View):
         if STORE_STATUS == "closed":
             embed = discord.Embed(color=0xff0000); embed.description = "## 🔴 MIPI STORE UDAH TUTUP! 💤\n\nMohon maaf yaa, toko udah **TUTUP**!\n\n🚫 **Ticket lagi dikunci** biar ga numpuk!\nOrderan kamu bakal dibales besok pas Mimin **OPEN** lagi!\n\nMakasih udah mampir hari ini! Sampai ketemu besok! 💗"; await interaction.response.send_message(embed=embed, ephemeral=True); return
         await interaction.response.send_modal(OrderModal())
-        # ===== PART 3/5 - COMMANDS + REKBER PINK PERSIS CHLOE =====
+        # ===== PART 3/5 - COMMANDS + REKBER PINK PERSIS CHLOE - FIX DIDN'T RESPOND =====
 @bot.event
 async def on_message(message):
     if message.author.bot: return
@@ -593,7 +593,7 @@ async def close_prefix(ctx):
     if not is_admin_or_owner(ctx.author, ctx.guild): await ctx.send("❌ Hanya Admin / Owner!"); return
     await kirim_status_openclose(ctx.guild, "closed"); await ctx.send("✅ **MIPI STORE udah CLOSED!** 🔴")
 
-# ===== REKBER MIPI - PERSIS CHLOE TAPI PINK 💗 =====
+# ===== REKBER MIPI - PERSIS CHLOE TAPI PINK 💗 - FIXED =====
 rekber_data = {}; rekber_counter = 0; rekber_history = []
 REKBER_FEES = [("Rp 1.000 - Rp 9.000", 1000, 9000, 1500), ("Rp 10.000 - Rp 49.000", 10000, 49000, 1500), ("Rp 50.000 - Rp 99.000", 50000, 99000, 1500), ("Rp 100.000 - Rp 199.000", 100000, 199000, 2500), ("Rp 200.000 - Rp 499.000", 200000, 499000, 4000), ("Rp 500.000 - Rp 1.000.000", 500000, 1000000, 7000), ("Di atas Rp 1.000.000", 1000001, 999999999, 10000)]
 def get_fee_rekber(harga):
@@ -662,7 +662,7 @@ class RekberPanelLayout(discord.ui.LayoutView):
         view = RekberFormV2Pink(interaction.user.id)
         await interaction.response.send_message(view=view, ephemeral=True)
 
-# ===== FORM TICKET MIDDLEMAN - PERSIS VIDEO + PINK SAMPING =====
+# ===== FORM TICKET MIDDLEMAN - PERSIS VIDEO + PINK SAMPING - FIXED DIPISAH =====
 class RekberFormV2Pink(discord.ui.LayoutView):
     def __init__(self, user_id):
         super().__init__(timeout=600); self.user_id = user_id; self.build()
@@ -675,12 +675,14 @@ class RekberFormV2Pink(discord.ui.LayoutView):
         rentang = discord.ui.StringSelect(placeholder="Pilih rentang transaksi", custom_id="rekber_rentang", options=[discord.SelectOption(label="Rp 1.000 - Rp 9.000", description="Fee: Rp 1.500", value="0"), discord.SelectOption(label="Rp 10.000 - Rp 49.000", description="Fee: Rp 1.500", value="1"), discord.SelectOption(label="Rp 50.000 - Rp 99.000", description="Fee: Rp 1.500", value="2"), discord.SelectOption(label="Rp 100.000 - Rp 199.000", description="Fee: Rp 2.500", value="3"), discord.SelectOption(label="Rp 200.000 - Rp 499.000", description="Fee: Rp 4.000", value="4"), discord.SelectOption(label="Rp 500.000 - Rp 1.000.000", description="Fee: Rp 7.000", value="5"), discord.SelectOption(label="Di atas Rp 1.000.000", description="Fee: Rp 10.000", value="6")]); rentang.callback = self.pilih_rentang; c.add_item(discord.ui.ActionRow(rentang))
         c.add_item(discord.ui.TextDisplay("Klik jika pembelinya kamu ->"))
         b1 = discord.ui.Button(label="Saya", style=discord.ButtonStyle.primary, custom_id="saya_buyer"); b1.callback = self.saya_buyer
+        c.add_item(discord.ui.ActionRow(b1))
         u1 = discord.ui.UserSelect(placeholder="Pilih buyer", custom_id="pilih_buyer"); u1.callback = self.pilih_buyer_cb
-        c.add_item(discord.ui.ActionRow(b1, u1))
+        c.add_item(discord.ui.ActionRow(u1))
         c.add_item(discord.ui.TextDisplay("Klik jika penjualnya kamu ->"))
         b2 = discord.ui.Button(label="Saya", style=discord.ButtonStyle.primary, custom_id="saya_seller"); b2.callback = self.saya_seller
+        c.add_item(discord.ui.ActionRow(b2))
         u2 = discord.ui.UserSelect(placeholder="Pilih seller", custom_id="pilih_seller"); u2.callback = self.pilih_seller_cb
-        c.add_item(discord.ui.ActionRow(b2, u2))
+        c.add_item(discord.ui.ActionRow(u2))
         c.add_item(discord.ui.TextDisplay("Pilih yang bayar fee rekber."))
         fee_by = discord.ui.StringSelect(placeholder="Fee rekber ditanggung oleh...", custom_id="fee_by", options=[discord.SelectOption(label="Pembeli", value="Pembeli"), discord.SelectOption(label="Penjual", value="Penjual"), discord.SelectOption(label="Split (50:50)", value="Split (50:50)")]); fee_by.callback = self.pilih_fee_by; c.add_item(discord.ui.ActionRow(fee_by))
         btn_detail = discord.ui.Button(label="Isi Detail Barang", style=discord.ButtonStyle.primary, custom_id="isi_detail", emoji="📝"); btn_detail.callback = self.isi_detail; c.add_item(discord.ui.ActionRow(btn_detail))
