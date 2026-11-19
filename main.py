@@ -1,4 +1,4 @@
-# ===== MIPI STORE - FULL 1 FILE - UDAH DI-FIX TOTAL, TINGGAL COPY =====
+# ===== MIPI STORE - FULL 1 FILE - VERSI AMAN (NO LayoutView, NO on_interaction) =====
 import discord
 from discord.ext import commands, tasks
 import os, time, io, html, re, asyncio, json, random, string, aiohttp
@@ -140,7 +140,6 @@ class GiveawayView(discord.ui.View):
         except:
             pass
         await interaction.response.send_message("Berhasil join giveaway " + str(data["hadiah"]) + "! Good luck!", ephemeral=True)
-
 async def end_giveaway(guild, channel_id, message_id, giveaway_id):
     data = giveaway_data.get(giveaway_id)
     if not data or data["ended"]:
@@ -925,7 +924,7 @@ async def close_prefix(ctx):
     await kirim_status_openclose(ctx.guild, "closed")
     await ctx.send("MIPI STORE udah CLOSED!")
 
-# ===== REKBER MIPI - FIX FINAL: LayoutView + 1 PINTU on_interaction =====
+# ===== REKBER MIPI - VERSI AMAN (View + Modal, NO LayoutView) =====
 rekber_data = {}
 rekber_counter = 0
 rekber_history = []
@@ -935,56 +934,68 @@ def get_fee_rekber(harga):
         if mn <= harga <= mx:
             return label, fee
     return "Di atas Rp 1.000.000", 10000
-def get_rekber_state(user_id):
-    if user_id not in rekber_data:
-        rekber_data[user_id] = {"rentang": None, "fee": 0, "rentang_label": "-", "buyer_id": None, "seller_id": None, "fee_by": None, "jenis": "-", "harga": 0, "harga_text": "-"}
-    return rekber_data[user_id]
-def build_rekber_form(user_id):
-    st = get_rekber_state(user_id)
-    buyer_txt = "<@" + str(st["buyer_id"]) + ">" if st["buyer_id"] else "-"
-    seller_txt = "<@" + str(st["seller_id"]) + ">" if st["seller_id"] else "-"
-    fee_txt = format_rp(st["fee"]) if st["fee"] else "-"
-    fee_by_txt = st["fee_by"] or "-"
-    header = "## Ticket Middleman\n• Rentang Transaksi: " + str(st["rentang_label"]) + "\n• Fee Rekber: " + fee_txt + "\n• Buyer: " + buyer_txt + "\n• Seller: " + seller_txt + "\n• Fee Ditanggung: " + fee_by_txt + "\n• Jenis Barang: " + str(st["jenis"]) + "\n• Harga Barang: " + str(st["harga_text"])
-    view = discord.ui.LayoutView(timeout=600)
-    c1 = discord.ui.Container(accent_colour=discord.Colour(0xFF69B4))
-    c1.add_item(discord.ui.TextDisplay(header))
-    c1.add_item(discord.ui.Separator(visible=True))
-    c1.add_item(discord.ui.TextDisplay("Pilih rentang harga transaksi."))
-    rentang = discord.ui.StringSelect(placeholder="Pilih rentang transaksi", custom_id="rekber_rentang", options=[discord.SelectOption(label="Rp 1.000 - Rp 9.000", description="Fee: Rp 1.500", value="0"), discord.SelectOption(label="Rp 10.000 - Rp 49.000", description="Fee: Rp 1.500", value="1"), discord.SelectOption(label="Rp 50.000 - Rp 99.000", description="Fee: Rp 1.500", value="2"), discord.SelectOption(label="Rp 100.000 - Rp 199.000", description="Fee: Rp 2.500", value="3"), discord.SelectOption(label="Rp 200.000 - Rp 499.000", description="Fee: Rp 4.000", value="4"), discord.SelectOption(label="Rp 500.000 - Rp 1.000.000", description="Fee: Rp 7.000", value="5"), discord.SelectOption(label="Di atas Rp 1.000.000", description="Fee: Rp 10.000", value="6")])
-    c1.add_item(discord.ui.ActionRow(rentang))
-    c1.add_item(discord.ui.TextDisplay("Klik jika pembelinya kamu ->"))
-    c1.add_item(discord.ui.ActionRow(discord.ui.Button(label="Saya", style=discord.ButtonStyle.primary, custom_id="saya_buyer")))
-    c1.add_item(discord.ui.ActionRow(discord.ui.UserSelect(placeholder="Pilih buyer", custom_id="pilih_buyer")))
-    c1.add_item(discord.ui.TextDisplay("Klik jika penjualnya kamu ->"))
-    c1.add_item(discord.ui.ActionRow(discord.ui.Button(label="Saya", style=discord.ButtonStyle.primary, custom_id="saya_seller")))
-    c1.add_item(discord.ui.ActionRow(discord.ui.UserSelect(placeholder="Pilih seller", custom_id="pilih_seller")))
-    view.add_item(c1)
-    c2 = discord.ui.Container(accent_colour=discord.Colour(0xFF69B4))
-    c2.add_item(discord.ui.TextDisplay("Pilih yang bayar fee rekber."))
-    c2.add_item(discord.ui.ActionRow(discord.ui.StringSelect(placeholder="Fee rekber ditanggung oleh...", custom_id="fee_by", options=[discord.SelectOption(label="Pembeli", value="Pembeli"), discord.SelectOption(label="Penjual", value="Penjual"), discord.SelectOption(label="Split (50:50)", value="Split (50:50)")]))
-    c2.add_item(discord.ui.ActionRow(discord.ui.Button(label="Isi Detail Barang", style=discord.ButtonStyle.primary, custom_id="isi_detail", emoji="📝")))
-    c2.add_item(discord.ui.ActionRow(discord.ui.Button(label="Buat Ticket", style=discord.ButtonStyle.success, custom_id="buat_ticket", emoji="✅"), discord.ui.Button(label="Batal", style=discord.ButtonStyle.danger, custom_id="batal", emoji="❌")))
-    view.add_item(c2)
-    return view
-class RekberDetailModalFinal(discord.ui.Modal, title="Detail Barang Middleman"):
-    def __init__(self, user_id):
-        super().__init__()
-        self.user_id = user_id
-    jenis = discord.ui.TextInput(label="Jenis Barang", placeholder="Contoh: Nama Item/Akun Roblox/Robux/Dll.", required=True, max_length=100)
-    harga = discord.ui.TextInput(label="Harga Barang (angka saja)", placeholder="Contoh: 100000 atau 100.000", required=True, max_length=20)
+class RekberModal(discord.ui.Modal, title="Buat Ticket Middleman"):
+    buyer_input = discord.ui.TextInput(label="Buyer (tag / username)", placeholder="Contoh: @nama_buyer atau isi ID buyer", required=True, max_length=100)
+    seller_input = discord.ui.TextInput(label="Seller (tag / username)", placeholder="Contoh: @nama_seller atau isi ID seller", required=True, max_length=100)
+    jenis = discord.ui.TextInput(label="Jenis Barang", placeholder="Contoh: Akun Roblox / Robux / Item", required=True, max_length=100)
+    harga = discord.ui.TextInput(label="Harga Barang (angka saja)", placeholder="Contoh: 100000", required=True, max_length=20)
+    fee_by = discord.ui.TextInput(label="Fee Ditanggung Oleh", placeholder="Ketik: Pembeli / Penjual / Split", required=True, max_length=20, default="Pembeli")
     async def on_submit(self, interaction: discord.Interaction):
+        global rekber_counter
+        def cari_member(text):
+            text = text.strip()
+            m = re.search(r'(\d{15,})', text)
+            if m:
+                mem = interaction.guild.get_member(int(m.group(1)))
+                if mem:
+                    return mem
+            low = text.lower().replace("@", "").strip()
+            for mem in interaction.guild.members:
+                if mem.name.lower() == low or mem.display_name.lower() == low:
+                    return mem
+            return None
+        buyer = cari_member(self.buyer_input.value)
+        seller = cari_member(self.seller_input.value)
+        if not buyer or not seller:
+            await interaction.response.send_message("Buyer / Seller tidak ketemu! Tag yang bener ya, contoh: @RafixMP atau isi ID-nya!", ephemeral=True)
+            return
+        if buyer.id == seller.id:
+            await interaction.response.send_message("Buyer dan seller tidak boleh user yang sama!", ephemeral=True)
+            return
         hb = self.harga.value.replace(".", "").replace(",", "").replace("Rp", "").replace(" ", "")
         try:
             harga_int = int(hb)
         except:
             await interaction.response.send_message("Harga harus angka!", ephemeral=True)
             return
-        st = get_rekber_state(self.user_id)
-        st["jenis"] = self.jenis.value
-        st["harga"] = harga_int
-        st["harga_text"] = format_rp(harga_int)
-        await interaction.response.edit_message(view=build_rekber_form(self.user_id))
+        fee_by_input = self.fee_by.value.strip().lower()
+        if "penjual" in fee_by_input or "seller" in fee_by_input:
+            fee_by_fix = "Penjual"
+        elif "split" in fee_by_input or "50" in fee_by_input:
+            fee_by_fix = "Split (50:50)"
+        else:
+            fee_by_fix = "Pembeli"
+        label_fee, fee = get_fee_rekber(harga_int)
+        if fee_by_fix == "Pembeli":
+            total_buyer = harga_int + fee
+            terima_seller = harga_int
+        elif fee_by_fix == "Penjual":
+            total_buyer = harga_int
+            terima_seller = harga_int - fee
+        else:
+            total_buyer = harga_int + fee//2
+            terima_seller = harga_int - fee//2
+        rekber_counter += 1
+        guild = interaction.guild
+        overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), buyer: discord.PermissionOverwrite(read_messages=True, send_messages=True), seller: discord.PermissionOverwrite(read_messages=True, send_messages=True), interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
+        cat = get_ticket_category(guild)
+        channel = await guild.create_text_channel(name="rekber-" + str(rekber_counter) + "-" + buyer.name + "-" + seller.name, overwrites=overwrites, category=cat)
+        embed = discord.Embed(title="REKBER MIPI STORE - #" + str(rekber_counter), description="Buyer: " + buyer.mention + "\nSeller: " + seller.mention + "\nJenis: " + self.jenis.value + "\nHarga: " + format_rp(harga_int) + "\nRentang: " + label_fee + "\nFee: " + format_rp(fee) + " (" + fee_by_fix + ")\nBuyer Transfer: " + format_rp(total_buyer) + "\nSeller Terima: " + format_rp(terima_seller), color=0xFF69B4)
+        embed.set_image(url=WELCOME_URL)
+        await channel.send(buyer.mention + " " + seller.mention + " Ticket Rekber dibuat oleh " + interaction.user.mention + "!", embed=embed, view=RekberStatusView(rekber_counter, {}))
+        await channel.send(embed=discord.Embed(title="Buyer Transfer Kesini", description="Total: " + format_rp(total_buyer), color=0xFF69B4).set_image(url=QRIS_URL))
+        rekber_history.append({"id": rekber_counter, "buyer": buyer.name, "buyer_id": buyer.id, "seller": seller.name, "seller_id": seller.id, "jenis": self.jenis.value, "harga": harga_int, "fee": fee, "fee_by": fee_by_fix, "status": "BERJALAN", "waktu": datetime.now().isoformat(), "channel": channel.name})
+        await interaction.response.send_message("Ticket Rekber dibuat! " + channel.mention, ephemeral=True)
 class RekberStatusView(discord.ui.View):
     def __init__(self, rekber_id, data):
         super().__init__(timeout=None)
@@ -1023,126 +1034,15 @@ class RekberStatusView(discord.ui.View):
             await interaction.channel.delete()
         except:
             pass
-class RekberPanelLayout(discord.ui.LayoutView):
-    def __init__(self, guild):
+class RekberPanelView(discord.ui.View):
+    def __init__(self):
         super().__init__(timeout=None)
-        self.guild = guild
-        hist_ch = None
-        for ch in guild.text_channels:
-            if "history" in ch.name.lower() and ("rekber" in ch.name.lower() or "midman" in ch.name.lower()):
-                hist_ch = ch
-                break
-        hist_url = "https://discord.com/channels/" + str(guild.id) + "/" + str(hist_ch.id) if hist_ch else "https://discord.com/channels/" + str(guild.id)
-        container = discord.ui.Container(accent_colour=discord.Colour(0xFF69B4))
-        container.add_item(discord.ui.TextDisplay("## Middleman/Rekber Service by MIPI STORE"))
-        container.add_item(discord.ui.ActionRow(discord.ui.Button(label="History Transaksi", style=discord.ButtonStyle.link, url=hist_url, emoji="📜")))
-        container.add_item(discord.ui.Separator(visible=True))
-        container.add_item(discord.ui.TextDisplay("**Daftar Fee Middleman:**\n• Rp 1.000 - Rp 9.000 -> Fee **1.500**\n• Rp 10.000 - Rp 49.000 -> Fee **1.500**\n• Rp 50.000 - Rp 99.000 -> Fee **1.500**\n• Rp 100.000 - Rp 199.000 -> Fee **2.500**\n• Rp 200.000 - Rp 499.000 -> Fee **4.000**\n• Rp 500.000 - Rp 1.000.000 -> Fee **7.000**\n• Di atas Rp 1.000.000 -> Fee **10.000**\n\nFee dibayar 1x per transaksi\nFee bisa ditanggung buyer / seller / split"))
-        container.add_item(discord.ui.Separator(visible=True))
-        container.add_item(discord.ui.TextDisplay("Untuk membuat ticket middleman, klik tombol di bawah lalu pilih **buyer** dan **seller** dari dropdown member Discord."))
-        container.add_item(discord.ui.Separator(visible=True))
-        container.add_item(discord.ui.ActionRow(discord.ui.Button(label="Buat Ticket Middleman", style=discord.ButtonStyle.secondary, custom_id="rekber_buat_ticket", emoji="🎫")))
-        self.add_item(container)
-
-@bot.event
-async def on_interaction(interaction: discord.Interaction):
-    try:
-        cid = interaction.data.get("custom_id", "") if interaction.data else ""
-    except:
-        cid = ""
-    if cid not in ["rekber_buat_ticket", "rekber_rentang", "saya_buyer", "pilih_buyer", "saya_seller", "pilih_seller", "fee_by", "isi_detail", "buat_ticket", "batal"]:
-        return
-    if interaction.response.is_done():
-        return
-    uid = interaction.user.id
-    try:
-        if cid == "rekber_buat_ticket":
-            if STORE_STATUS != "open":
-                await interaction.response.send_message("MIPI lagi BREAK / CLOSED! Rekber buka lagi pas OPEN ya!", ephemeral=True)
-                return
-            rekber_data[uid] = {"rentang": None, "fee": 0, "rentang_label": "-", "buyer_id": None, "seller_id": None, "fee_by": None, "jenis": "-", "harga": 0, "harga_text": "-"}
-            await interaction.response.send_message(view=build_rekber_form(uid), ephemeral=True)
+    @discord.ui.button(label="🎫 Buat Ticket Middleman", style=discord.ButtonStyle.primary, custom_id="rekber_buat_ticket")
+    async def buat_ticket_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if STORE_STATUS != "open":
+            await interaction.response.send_message("MIPI lagi BREAK / CLOSED! Rekber buka lagi pas OPEN ya!", ephemeral=True)
             return
-        st = get_rekber_state(uid)
-        if cid == "rekber_rentang":
-            idx = int(interaction.data["values"][0])
-            label, mn, mx, fee = REKBER_FEES[idx]
-            st["rentang_label"] = label
-            st["fee"] = fee
-            await interaction.response.edit_message(view=build_rekber_form(uid))
-            return
-        if cid == "saya_buyer":
-            st["buyer_id"] = uid
-            await interaction.response.edit_message(view=build_rekber_form(uid))
-            return
-        if cid == "pilih_buyer":
-            st["buyer_id"] = int(interaction.data["values"][0])
-            await interaction.response.edit_message(view=build_rekber_form(uid))
-            return
-        if cid == "saya_seller":
-            st["seller_id"] = uid
-            await interaction.response.edit_message(view=build_rekber_form(uid))
-            return
-        if cid == "pilih_seller":
-            st["seller_id"] = int(interaction.data["values"][0])
-            await interaction.response.edit_message(view=build_rekber_form(uid))
-            return
-        if cid == "fee_by":
-            st["fee_by"] = interaction.data["values"][0]
-            await interaction.response.edit_message(view=build_rekber_form(uid))
-            return
-        if cid == "isi_detail":
-            await interaction.response.send_modal(RekberDetailModalFinal(uid))
-            return
-        if cid == "batal":
-            if uid in rekber_data:
-                del rekber_data[uid]
-            await interaction.response.edit_message(content="Pembuatan Ticket Rekber dibatalkan.", view=None)
-            return
-        if cid == "buat_ticket":
-            global rekber_counter
-            if not st["rentang_label"] or st["rentang_label"] == "-" or not st["buyer_id"] or not st["seller_id"] or not st["fee_by"] or st["jenis"] == "-" or st["harga"] == 0:
-                await interaction.response.send_message("Lengkapi semua field dulu: rentang, buyer, seller, fee ditanggung oleh, jenis barang, dan harga barang.", ephemeral=True)
-                return
-            if st["buyer_id"] == st["seller_id"]:
-                await interaction.response.send_message("Buyer dan seller tidak boleh user yang sama.", ephemeral=True)
-                return
-            rekber_counter += 1
-            guild = interaction.guild
-            buyer = guild.get_member(st["buyer_id"]) or await guild.fetch_member(st["buyer_id"])
-            seller = guild.get_member(st["seller_id"]) or await guild.fetch_member(st["seller_id"])
-            overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), buyer: discord.PermissionOverwrite(read_messages=True, send_messages=True), seller: discord.PermissionOverwrite(read_messages=True, send_messages=True), interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
-            cat = get_ticket_category(guild)
-            channel = await guild.create_text_channel(name="rekber-" + str(rekber_counter) + "-" + buyer.name + "-" + seller.name, overwrites=overwrites, category=cat)
-            fee = st["fee"]
-            if st["fee_by"] == "Pembeli":
-                total_buyer = st["harga"] + fee
-                terima_seller = st["harga"]
-            elif st["fee_by"] == "Penjual":
-                total_buyer = st["harga"]
-                terima_seller = st["harga"] - fee
-            else:
-                total_buyer = st["harga"] + fee//2
-                terima_seller = st["harga"] - fee//2
-            embed = discord.Embed(title="REKBER MIPI STORE - #" + str(rekber_counter), description="Buyer: " + buyer.mention + "\nSeller: " + seller.mention + "\nJenis: " + str(st["jenis"]) + "\nHarga: " + format_rp(st["harga"]) + "\nFee: " + format_rp(fee) + " (" + str(st["fee_by"]) + ")\nBuyer Transfer: " + format_rp(total_buyer) + "\nSeller Terima: " + format_rp(terima_seller), color=0xFF69B4)
-            embed.set_image(url=WELCOME_URL)
-            await channel.send(buyer.mention + " " + seller.mention + " Ticket Rekber dibuat oleh " + interaction.user.mention + "!", embed=embed, view=RekberStatusView(rekber_counter, st))
-            await channel.send(embed=discord.Embed(title="Buyer Transfer Kesini", description="Total: " + format_rp(total_buyer), color=0xFF69B4).set_image(url=QRIS_URL))
-            rekber_history.append({"id": rekber_counter, "buyer": buyer.name, "buyer_id": st["buyer_id"], "seller": seller.name, "seller_id": st["seller_id"], "jenis": st["jenis"], "harga": st["harga"], "fee": fee, "fee_by": st["fee_by"], "status": "BERJALAN", "waktu": datetime.now().isoformat(), "channel": channel.name})
-            if uid in rekber_data:
-                del rekber_data[uid]
-            await interaction.response.send_message("Ticket Rekber dibuat! " + channel.mention, ephemeral=True)
-            return
-    except Exception as e:
-        print("ERROR REKBER " + str(cid) + ": " + str(e))
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message("Error: " + str(e), ephemeral=True)
-            else:
-                await interaction.followup.send("Error: " + str(e), ephemeral=True)
-        except:
-            pass
-
+        await interaction.response.send_modal(RekberModal())
 def get_history_rekber_channel(guild):
     for ch in guild.text_channels:
         if "history" in ch.name.lower() and ("rekber" in ch.name.lower() or "midman" in ch.name.lower()):
@@ -1164,13 +1064,14 @@ async def kirim_history_rekber(guild, rekber_id, buyer, seller, jenis, harga, fe
     embed.set_footer(text="MIPI STORE - Rekber Aman 100% - Trusted")
     await ch.send(embed=embed)
     return ticket_id
-@bot.tree.command(name="setup-rekber", description="Kirim panel Rekber MIPI PINK (Owner only)")
+@bot.tree.command(name="setup-rekber", description="Kirim panel Rekber MIPI (Owner only)")
 async def setup_rekber(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id:
         await interaction.response.send_message("Hanya Owner!", ephemeral=True)
         return
-    view = RekberPanelLayout(interaction.guild)
-    await interaction.response.send_message(view=view)
+    embed = discord.Embed(title="Middleman/Rekber Service by MIPI STORE", description="**Daftar Fee Middleman:**\n• Rp 1.000 - Rp 9.000 -> Fee **1.500**\n• Rp 10.000 - Rp 49.000 -> Fee **1.500**\n• Rp 50.000 - Rp 99.000 -> Fee **1.500**\n• Rp 100.000 - Rp 199.000 -> Fee **2.500**\n• Rp 200.000 - Rp 499.000 -> Fee **4.000**\n• Rp 500.000 - Rp 1.000.000 -> Fee **7.000**\n• Di atas Rp 1.000.000 -> Fee **10.000**\n\nFee dibayar 1x per transaksi\nFee bisa ditanggung buyer / seller / split\n\nUntuk membuat ticket middleman, klik tombol di bawah, lalu isi Buyer, Seller, Jenis Barang, Harga, dan Fee Ditanggung di formulir!", color=0xFF69B4)
+    embed.set_image(url=WELCOME_URL)
+    await interaction.response.send_message(embed=embed, view=RekberPanelView())
 @bot.tree.command(name="setup-history-rekber", description="Bikin channel history rekber (Owner)")
 async def setup_history_rekber(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id:
