@@ -26,7 +26,36 @@ ticket_counter = 0
 user_ratings = {}
 user_last_ticket = {}
 
-PRICELIST = {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000}
+# ========== STATUS TOKO - ANTI SPAM TICKET ==========
+STORE_STATUS = "open"
+STORE_STATUS_MSG = ""
+
+# ========== PRICELIST DINAMIS - BISA DI SET DARI DC ==========
+PRICELIST_FILE = "pricelist.json"
+DEFAULT_PRICELIST = {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000}
+
+def load_pricelist():
+    try:
+        with open(PRICELIST_FILE, "r") as f:
+            data = json.load(f)
+            return {int(k): int(v) for k, v in data.items()}
+    except:
+        return DEFAULT_PRICELIST.copy()
+
+def save_pricelist(data):
+    with open(PRICELIST_FILE, "w") as f:
+        json.dump({str(k): v for k, v in data.items()}, f, indent=2)
+
+def get_harga(robux):
+    data = load_pricelist()
+    if robux in data:
+        return data[robux]
+    return robux * 150
+
+def format_rp(nominal):
+    return f"Rp {nominal:,}".replace(",", ".")
+
+PRICELIST = load_pricelist()
 
 LEADERBOARD_FILE = "leaderboard.json"
 
@@ -45,7 +74,7 @@ def add_to_leaderboard(user_id, username, paket_text):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
     if not m: return
     jumlah = int(m.group(1))
-    harga = PRICELIST.get(jumlah, jumlah * 150)
+    harga = get_harga(jumlah)
     data = load_leaderboard()
     bulan = datetime.now().strftime("%Y-%m")
     if bulan not in data:
@@ -169,7 +198,7 @@ def hitung_harga(paket_text):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
     if not m: return "500", "Rp 75.000"
     jumlah = int(m.group(1))
-    harga = PRICELIST.get(jumlah, jumlah * 150)
+    harga = get_harga(jumlah)
     return str(jumlah), f"Rp {harga:,}".replace(",", ".")
 
 def get_status_channel(guild):
@@ -413,7 +442,7 @@ class OrderModal(discord.ui.Modal, title="Pesanan Robux"):
         channel = await guild.create_text_channel(name=f"robux-via-username-{ticket_counter}-{interaction.user.name}", overwrites=overwrites, category=category)
         m_temp = re.search(r'(\d+)', str(self.paket.value).replace('.', ''))
         jumlah_int = int(m_temp.group(1)) if m_temp else 500
-        harga_awal = PRICELIST.get(jumlah_int, jumlah_int * 150)
+        harga_awal = get_harga(jumlah_int)
         kode_input = self.kode_promo.value.strip() if self.kode_promo.value else ""
         harga_akhir, diskon, err_promo = cek_promo(kode_input, harga_awal, jumlah_int)
         promo_text = ""
@@ -446,6 +475,16 @@ class OrderView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="ORDER ROBUX", style=discord.ButtonStyle.primary, custom_id="order_robux")
     async def order_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if STORE_STATUS == "break":
+            embed = discord.Embed(color=0xfee75c)
+            embed.description = "## 🟡 MIPI STORE LAGI BREAK! ☕\n\nMimin break sebentar yaa, 15-30 menit aja!\n\n🚫 **Ticket lagi dikunci sementara** biar Mimin bisa istirahat dulu!\nTunggu sampe Mimin **OPEN** lagi yaa, jangan spam pencet tombol!\n\nMakasih udah ngerti! 💗"
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        if STORE_STATUS == "closed":
+            embed = discord.Embed(color=0xff0000)
+            embed.description = "## 🔴 MIPI STORE UDAH TUTUP! 💤\n\nMohon maaf yaa, toko udah **TUTUP**!\n\n🚫 **Ticket lagi dikunci** biar ga numpuk!\nOrderan kamu bakal dibales besok pas Mimin **OPEN** lagi!\n\nMakasih udah mampir hari ini! Sampai ketemu besok! 💗"
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
         await interaction.response.send_modal(OrderModal())
 
 @bot.event
@@ -476,6 +515,10 @@ async def on_ready():
 
 @bot.tree.command(name="ticket", description="Tampilkan panel order MIPI STORE")
 async def ticket(interaction: discord.Interaction):
+    if STORE_STATUS != "open":
+        status_text = "🟡 BREAK - Mimin break 15-30 menit!" if STORE_STATUS == "break" else "🔴 CLOSED - Toko tutup, balik besok yaa!"
+        await interaction.response.send_message(f"{status_text}\n\n🚫 Ticket lagi dikunci sementara biar ga spam! Tunggu OPEN lagi yaa! 💗", ephemeral=True)
+        return
     embed1 = discord.Embed(title="Mipi Store - Order Robux 💗", description="🌸 **ROBUX VIA USERNAME**\nFast Process • Aman • Instan\n\nSyarat top up via username:\n>> SUDAH 18+\n>> SUDAH TERVERIFIKASI 2 LANGKAH", color=0xff69b4)
     embed1.set_image(url=WELCOME_URL)
     embed2 = discord.Embed(title="💰 PRICELIST ROBUX FAST SEND", description="500 = Rp 75.000\n1000 = Rp 150.000\n2000 = Rp 300.000\n3000 = Rp 450.000\n4000 = Rp 600.000\n5000 = Rp 750.000\n\n🌸 **Robux Eceran**\n100 = Rp 16.000\n200 = Rp 32.000\n300 = Rp 48.000\n400 = Rp 64.000\n\n🛒 **Cara Order**\nClick tombol ORDER ROBUX dibawah, isi formulir, lalu tunggu admin. Pembayaran **hanya QRIS**.", color=0xff69b4)
@@ -534,7 +577,7 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
         await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
     if robux <= 0:
         await interaction.response.send_message("❌ Jumlah Robux harus lebih dari 0!", ephemeral=True); return
-    harga = PRICELIST.get(robux, robux * 150)
+    harga = get_harga(robux)
     add_to_leaderboard(user.id, user.name, f"{robux} Robux")
     total_rp, total_robux, total_transaksi = get_total_belanja(user.id)
     harga_str = f"Rp {harga:,}".replace(",", ".")
@@ -551,7 +594,7 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
 async def add_saldo_prefix(ctx, user: discord.User, robux: int):
     if not is_admin_or_owner(ctx.author, ctx.guild):
         await ctx.send("❌ Hanya Admin / Owner!"); return
-    harga = PRICELIST.get(robux, robux * 150)
+    harga = get_harga(robux)
     add_to_leaderboard(user.id, user.name, f"{robux} Robux")
     harga_str = f"Rp {harga:,}".replace(",", ".")
     await ctx.send(f"✅ **Saldo {user.mention} ditambah!**\n📦 +{robux:,} R$\n💰 +{harga_str}")
@@ -598,7 +641,7 @@ async def cek_promo_cmd(interaction: discord.Interaction, kode: str, paket: str 
     sisa = p.get("max", 999) - p.get("dipakai", 0)
     m = re.search(r'(\d+)', str(paket).replace('.', ''))
     jumlah = int(m.group(1)) if m else 500
-    harga_awal = PRICELIST.get(jumlah, jumlah * 150)
+    harga_awal = get_harga(jumlah)
     harga_baru, diskon, err = cek_promo(kode_up, harga_awal, jumlah)
     if err:
         await interaction.response.send_message(err, ephemeral=True); return
@@ -680,7 +723,6 @@ async def ping(interaction: discord.Interaction):
 async def ping_prefix(ctx):
     await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
 
-# ========== CHECKAVATAR V6 - SEMUA BISA DIPENCET KE ROBLOX ==========
 @bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
 async def checkavatar(interaction: discord.Interaction, username: str):
     await interaction.response.defer()
@@ -904,5 +946,206 @@ async def setup_cek(interaction: discord.Interaction):
         "Udah estetik banget, tinggal suruh member cobain! 🌸"
     )
     await interaction.followup.send(embed=done, ephemeral=True)
+
+# ========== OPEN / BREAK / CLOSED + ANTI SPAM ==========
+def get_openclose_channel(guild):
+    for ch in guild.text_channels:
+        if "open-close" in ch.name.lower() or "open" in ch.name.lower():
+            return ch
+    for ch in guild.text_channels:
+        if "pengumuman" in ch.name.lower() or "announcement" in ch.name.lower():
+            return ch
+    return guild.system_channel
+
+async def kirim_status_openclose(guild, tipe):
+    global STORE_STATUS, STORE_STATUS_MSG
+    ch = get_openclose_channel(guild)
+    if not ch:
+        return None
+    STORE_STATUS = tipe
+    if tipe == "open":
+        STORE_STATUS_MSG = ""
+    elif tipe == "break":
+        STORE_STATUS_MSG = "Mimin lagi break 15-30 menit yaa!"
+    else:
+        STORE_STATUS_MSG = "Toko udah TUTUP! Balik besok yaa!"
+    if tipe == "open":
+        embed = discord.Embed(color=0x57f287)
+        embed.description = (
+            "# 🟢 MIPI STORE - OPEN! 💗\n"
+            "━━━━━━━━━━━━━━━\n"
+            "**Selamat datang di MIPI STORE!**\n"
+            "Toko udah **BUKA** yaa, siap melayani kalian semua! ✨\n\n"
+            "💎 **Robux Ready Stock!**\n"
+            "⚡ **Proses Fast Satset!**\n"
+            "💰 **Harga Mulai Rp 3.500 aja!**\n\n"
+            "📌 **Cara Order:**\n"
+            "Ketik `/ticket` atau buka ticket di channel order!\n"
+            "🛒 **Order sekarang, Mimin fast respon!**\n"
+            "━━━━━━━━━━━━━━━\n"
+            "*MIPI STORE - Trusted & Aman 100%* 💗"
+        )
+        embed.set_image(url=WELCOME_URL)
+        embed.set_footer(text="MIPI STORE • OPEN")
+    elif tipe == "break":
+        embed = discord.Embed(color=0xfee75c)
+        embed.description = (
+            "# 🟡 MIPI STORE - BREAK SEBENTAR! ☕\n"
+            "━━━━━━━━━━━━━━━\n"
+            "**Mimin break sebentar yaa!** 🙏\n\n"
+            "⏳ **Break:** 15 - 30 Menit\n"
+            "💗 Chat tetap bisa masuk, tapi slow respon dulu ya!\n\n"
+            "🚫 **TICKET DIKUNCI SEMENTARA!**\n"
+            "Biar Mimin bisa istirahat dulu, nanti kalo udah balik langsung Mimin buka lagi!\n\n"
+            "Tungguin Mimin ya, jangan kemana-mana! ✨\n"
+            "━━━━━━━━━━━━━━━\n"
+            "*MIPI STORE - Back Soon!* 💗"
+        )
+        embed.set_footer(text="MIPI STORE • BREAK - Ticket Dikunci")
+    else:
+        embed = discord.Embed(color=0xff0000)
+        embed.description = (
+            "# 🔴 MIPI STORE - CLOSED! 💤\n"
+            "━━━━━━━━━━━━━━━\n"
+            "**Mohon maaf, toko udah TUTUP yaa!** 🙏\n\n"
+            "🚫 **TICKET DIKUNCI!**\n"
+            "Mimin udah off, biar ga numpuk spam ticket, ticket dibuka lagi besok pas OPEN!\n\n"
+            "💗 Makasih yang udah order hari ini!\n"
+            "Sampai ketemu besok, jangan lupa istirahat juga ya! ✨\n\n"
+            "━━━━━━━━━━━━━━━\n"
+            "*MIPI STORE - See You Tomorrow!* 💗"
+        )
+        embed.set_image(url=THANKYOU_URL)
+        embed.set_footer(text="MIPI STORE • CLOSED - Ticket Dikunci")
+    msg = await ch.send(embed=embed)
+    return msg
+
+@bot.tree.command(name="open", description="Buka toko MIPI STORE (Owner/Admin only)")
+async def open_cmd(interaction: discord.Interaction):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    await kirim_status_openclose(interaction.guild, "open")
+    try:
+        ch = get_openclose_channel(interaction.guild)
+        if ch: await ch.edit(name="🟢┆・open-close")
+    except: pass
+    await interaction.response.send_message("✅ **MIPI STORE udah OPEN!** 🟢 Ticket dibuka lagi!", ephemeral=True)
+
+@bot.tree.command(name="break", description="Break sebentar (Owner/Admin only)")
+async def break_cmd(interaction: discord.Interaction):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    await kirim_status_openclose(interaction.guild, "break")
+    try:
+        ch = get_openclose_channel(interaction.guild)
+        if ch: await ch.edit(name="🟡┆・break-sebentar")
+    except: pass
+    await interaction.response.send_message("✅ **MIPI STORE BREAK!** 🟡 Ticket dikunci sementara!", ephemeral=True)
+
+@bot.tree.command(name="close", description="Tutup toko MIPI STORE (Owner/Admin only)")
+async def close_cmd(interaction: discord.Interaction):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    await kirim_status_openclose(interaction.guild, "closed")
+    try:
+        ch = get_openclose_channel(interaction.guild)
+        if ch: await ch.edit(name="🔴┆・close-mipi-store")
+    except: pass
+    await interaction.response.send_message("✅ **MIPI STORE udah CLOSED!** 🔴 Ticket dikunci!", ephemeral=True)
+
+@bot.command(name="open")
+async def open_prefix(ctx):
+    if not is_admin_or_owner(ctx.author, ctx.guild):
+        await ctx.send("❌ Hanya Admin / Owner!"); return
+    await kirim_status_openclose(ctx.guild, "open")
+    await ctx.send("✅ **MIPI STORE udah OPEN!** 🟢")
+
+@bot.command(name="break")
+async def break_prefix(ctx):
+    if not is_admin_or_owner(ctx.author, ctx.guild):
+        await ctx.send("❌ Hanya Admin / Owner!"); return
+    await kirim_status_openclose(ctx.guild, "break")
+    await ctx.send("✅ **MIPI STORE BREAK!** 🟡")
+
+@bot.command(name="close")
+async def close_prefix(ctx):
+    if not is_admin_or_owner(ctx.author, ctx.guild):
+        await ctx.send("❌ Hanya Admin / Owner!"); return
+    await kirim_status_openclose(ctx.guild, "closed")
+    await ctx.send("✅ **MIPI STORE udah CLOSED!** 🔴")
+
+# ========== PRICELIST COMMAND - SET DARI DC ==========
+@bot.tree.command(name="pricelist", description="Lihat pricelist Robux MIPI STORE")
+async def pricelist_cmd(interaction: discord.Interaction):
+    data = load_pricelist()
+    desc = "## 💎 PRICELIST ROBUX - MIPI STORE 💗\n━━━━━━━━━━━━━━━\n\n"
+    for jumlah in sorted(data.keys()):
+        harga = format_rp(data[jumlah])
+        desc += f"**{jumlah:,} Robux** = {harga}\n"
+    desc += "\n━━━━━━━━━━━━━━━\n"
+    desc += "🛒 **Cara Order:** Ketik `/ticket`\n"
+    desc += "💳 **Pembayaran:** QRIS ONLY\n"
+    desc += "⚡ **Proses:** Fast Satset!\n\n"
+    desc += "*MIPI STORE - Trusted & Aman 100%* 💗"
+    embed = discord.Embed(description=desc, color=0xff69b4)
+    embed.set_image(url=QRIS_URL)
+    embed.set_footer(text="MIPI STORE • Pricelist")
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="set-harga", description="Ubah harga Robux langsung dari DC (Owner/Admin only)")
+async def set_harga(interaction: discord.Interaction, robux: int, harga: int):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    data = load_pricelist()
+    harga_lama = data.get(robux, robux*150)
+    data[robux] = harga
+    save_pricelist(data)
+    global PRICELIST
+    PRICELIST = data
+    embed = discord.Embed(color=0x57f287)
+    embed.description = f"✅ **HARGA BERHASIL DIUBAH!**\n\n💎 **Paket:** {robux:,} Robux\n💰 **Harga Lama:** {format_rp(harga_lama)}\n💰 **Harga Baru:** {format_rp(harga)}\n\nDiubah oleh: {interaction.user.mention}\nPricelist baru langsung aktif! Cek pake `/pricelist`"
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="tambah-paket", description="Tambah paket baru (Owner/Admin only)")
+async def tambah_paket(interaction: discord.Interaction, robux: int, harga: int):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    data = load_pricelist()
+    if robux in data:
+        await interaction.response.send_message(f"⚠️ Paket {robux} Robux udah ada! Pake `/set-harga` buat ubah harganya!", ephemeral=True); return
+    data[robux] = harga
+    save_pricelist(data)
+    global PRICELIST
+    PRICELIST = data
+    await interaction.response.send_message(f"✅ **Paket baru ditambah!**\n💎 {robux:,} Robux = {format_rp(harga)}\nCek `/pricelist` ya!", ephemeral=True)
+
+@bot.tree.command(name="hapus-paket", description="Hapus paket dari pricelist (Owner/Admin only)")
+async def hapus_paket(interaction: discord.Interaction, robux: int):
+    if not is_admin_or_owner(interaction.user, interaction.guild):
+        await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
+    data = load_pricelist()
+    if robux not in data:
+        await interaction.response.send_message(f"❌ Paket {robux} Robux ga ada!", ephemeral=True); return
+    del data[robux]
+    save_pricelist(data)
+    global PRICELIST
+    PRICELIST = data
+    await interaction.response.send_message(f"✅ Paket **{robux:,} Robux** udah dihapus dari pricelist!", ephemeral=True)
+
+@bot.tree.command(name="setup-pricelist", description="Kirim panel pricelist estetik ke channel ini (Owner only)")
+async def setup_pricelist(interaction: discord.Interaction):
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.response.send_message("❌ Hanya Owner!", ephemeral=True); return
+    data = load_pricelist()
+    desc = "## 💎 PRICELIST ROBUX - MIPI STORE 💗\n━━━━━━━━━━━━━━━\n\n"
+    for jumlah in sorted(data.keys()):
+        desc += f"**{jumlah:,} Robux** = {format_rp(data[jumlah])}\n"
+    desc += "\n━━━━━━━━━━━━━━━\n🛒 Order: `/ticket` | 💳 QRIS ONLY | ⚡ Fast Satset!"
+    embed = discord.Embed(description=desc, color=0xff69b4)
+    embed.set_image(url=QRIS_URL)
+    embed.set_footer(text="MIPI STORE • Pricelist • Auto update kalo harga diubah")
+    await interaction.response.send_message(embed=embed)
+
+# ========== END ALL ==========
 
 bot.run(os.getenv("DISCORD_TOKEN"))
