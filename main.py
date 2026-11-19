@@ -1,3 +1,4 @@
+# ===== MIPI STORE - FULL CODE 1/5 - PANEL PINK + FORM CLASSIC (PASTI JALAN) =====
 import discord
 from discord.ext import commands, tasks
 import os, time, io, html, re, asyncio, json, random, string, aiohttp
@@ -98,7 +99,6 @@ class GiveawayView(discord.ui.View):
             await interaction.message.edit(embed=embed, view=self)
         except: pass
         await interaction.response.send_message(f"✅ Berhasil join giveaway **{data['hadiah']}**! Good luck! 🍀", ephemeral=True)
-
 async def end_giveaway(guild, channel_id, message_id, giveaway_id):
     data = giveaway_data.get(giveaway_id)
     if not data or data["ended"]: return
@@ -344,8 +344,8 @@ class OrderView(discord.ui.View):
             embed = discord.Embed(color=0xfee75c); embed.description = "## 🟡 MIPI STORE LAGI BREAK! ☕\n\nMimin break sebentar yaa, 15-30 menit aja!\n\n🚫 **Ticket lagi dikunci sementara** biar Mimin bisa istirahat dulu!\nTunggu sampe Mimin **OPEN** lagi yaa, jangan spam pencet tombol!\n\nMakasih udah ngerti! 💗"; await interaction.response.send_message(embed=embed, ephemeral=True); return
         if STORE_STATUS == "closed":
             embed = discord.Embed(color=0xff0000); embed.description = "## 🔴 MIPI STORE UDAH TUTUP! 💤\n\nMohon maaf yaa, toko udah **TUTUP**!\n\n🚫 **Ticket lagi dikunci** biar ga numpuk!\nOrderan kamu bakal dibales besok pas Mimin **OPEN** lagi!\n\nMakasih udah mampir hari ini! Sampai ketemu besok! 💗"; await interaction.response.send_message(embed=embed, ephemeral=True); return
-        await interaction.response.send_modal(OrderModal()) 
-# ===== PART 3/5 - COMMANDS + REKBER PINK PERSIS CHLOE - FIX 2 KOTAK =====
+        await interaction.response.send_modal(OrderModal())
+
 @bot.event
 async def on_message(message):
     if message.author.bot: return
@@ -365,20 +365,6 @@ async def on_message(message):
     await bot.process_commands(message)
 
 @bot.event
-async def on_interaction(interaction: discord.Interaction):
-    # Backup handler kalau tombol panel LayoutView kehapus dari memori
-    try:
-        cid = interaction.data.get("custom_id", "") if interaction.data else ""
-    except: cid = ""
-    if cid == "rekber_buat_ticket":
-        if STORE_STATUS != "open":
-            await interaction.response.send_message("🔴 MIPI lagi BREAK / CLOSED! Rekber buka lagi pas OPEN ya!", ephemeral=True); return
-        rekber_data[interaction.user.id] = {"rentang": None, "fee": 0, "rentang_label": "-", "buyer_id": None, "seller_id": None, "fee_by": None, "jenis": "-", "harga": 0, "harga_text": "-"}
-        view = RekberFormV2Pink(interaction.user.id)
-        await interaction.response.send_message(view=view, ephemeral=True)
-        return
-
-@bot.event
 async def on_ready():
     print(f"Login {bot.user}")
     bot.add_view(OrderView()); bot.add_view(CloseView()); bot.add_view(StatusView()); bot.add_view(RatingView(0)); bot.add_view(SaldoView()); bot.add_view(GiveawayView("dummy"))
@@ -393,7 +379,6 @@ async def ticket(interaction: discord.Interaction):
     embed1 = discord.Embed(title="Mipi Store - Order Robux 💗", description="🌸 **ROBUX VIA USERNAME**\nFast Process • Aman • Instan\n\nSyarat top up via username:\n>> SUDAH 18+\n>> SUDAH TERVERIFIKASI 2 LANGKAH", color=0xff69b4); embed1.set_image(url=WELCOME_URL)
     embed2 = discord.Embed(title="💰 PRICELIST ROBUX FAST SEND", description="500 = Rp 75.000\n1000 = Rp 150.000\n2000 = Rp 300.000\n3000 = Rp 450.000\n4000 = Rp 600.000\n5000 = Rp 750.000\n\n🌸 **Robux Eceran**\n100 = Rp 16.000\n200 = Rp 32.000\n300 = Rp 48.000\n400 = Rp 64.000\n\n🛒 **Cara Order**\nClick tombol ORDER ROBUX dibawah, isi formulir, lalu tunggu admin. Pembayaran **hanya QRIS**.", color=0xff69b4); embed2.set_image(url=QRIS_URL); embed2.set_footer(text="Mipi Store • Rafi Store")
     await interaction.response.send_message(embed=embed1); await interaction.followup.send(embed=embed2, view=OrderView())
-
 @bot.tree.command(name="setup-ticket", description="Kirim panel ticket order (Owner only)")
 async def setup_ticket(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("❌ Hanya Owner!", ephemeral=True); return
@@ -401,7 +386,6 @@ async def setup_ticket(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed1)
     embed2 = discord.Embed(title="💰 PRICELIST ROBUX FAST SEND", description="500 = Rp 75.000\n1000 = Rp 150.000\n2000 = Rp 300.000\n3000 = Rp 450.000\n4000 = Rp 600.000\n5000 = Rp 750.000\n\n🌸 **Robux Eceran**\n100 = Rp 16.000\n200 = Rp 32.000\n300 = Rp 48.000\n400 = Rp 64.000", color=0xff69b4); embed2.set_image(url=QRIS_URL); embed2.set_footer(text="Mipi Store • Rafi Store")
     await interaction.followup.send(embed=embed2, view=OrderView())
-
 @bot.tree.command(name="leaderboard", description="Lihat Top Buyer MIPI STORE bulan ini")
 async def leaderboard(interaction: discord.Interaction):
     bulan = datetime.now().strftime("%Y-%m"); data = load_leaderboard(); bulan_data = data.get(bulan, {})
@@ -411,7 +395,6 @@ async def leaderboard(interaction: discord.Interaction):
     desc = f"Leaderboard bulanan • {bulan}\nPeringkat berdasarkan total Robux yang tercatat.\n\n**TOP 10 BUYERS**\n"
     for i, (uid, info) in enumerate(sorted_users): desc += f"{medali[i]} <@{uid}> — {info['total']:,} R$ · {info['transaksi']} transaksi\n"
     embed = discord.Embed(title="🏆 MIPI STORE — TOP BUYER", description=desc, color=0xff69b4); embed.set_footer(text="Mipi Store • Rafi Store"); await interaction.response.send_message(embed=embed)
-
 @bot.tree.command(name="saldo", description="Cek total belanja kamu di MIPI STORE")
 async def saldo_slash(interaction: discord.Interaction):
     total_rp, total_robux, total_transaksi = get_total_belanja(interaction.user.id); harga_str = f"Rp {total_rp:,}".replace(",", ".")
@@ -434,7 +417,6 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
 async def add_saldo_prefix(ctx, user: discord.User, robux: int):
     if not is_admin_or_owner(ctx.author, ctx.guild): await ctx.send("❌ Hanya Admin / Owner!"); return
     harga = get_harga(robux); add_to_leaderboard(user.id, user.name, f"{robux} Robux"); await ctx.send(f"✅ **Saldo {user.mention} ditambah!**\n📦 +{robux:,} R$\n💰 +{format_rp(harga)}")
-
 @bot.tree.command(name="buat-promo", description="Buat kode promo diskon (Owner only)")
 async def buat_promo(interaction: discord.Interaction, kode: str, diskon: int, tipe: str = "nominal", max_pakai: int = 10):
     if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("❌ Hanya Owner!", ephemeral=True); return
@@ -462,7 +444,6 @@ async def hapus_promo(interaction: discord.Interaction, kode: str):
     kode = kode.upper().strip(); data = load_promo()
     if kode not in data: await interaction.response.send_message(f"❌ Kode `{kode}` tidak ditemukan!", ephemeral=True); return
     del data[kode]; save_promo(data); await interaction.response.send_message(f"✅ Kode promo `{kode}` sudah dihapus!", ephemeral=True)
-
 @bot.tree.command(name="giveaway", description="Buat giveaway otomatis (Owner only)")
 async def giveaway_create(interaction: discord.Interaction, hadiah: str, durasi_menit: int, pemenang: int = 1):
     if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("❌ Hanya Owner yang bisa bikin giveaway!", ephemeral=True); return
@@ -480,7 +461,6 @@ async def giveaway_end(interaction: discord.Interaction):
         if data["channel_id"] == interaction.channel.id and not data["ended"]: found = (gid, data); break
     if not found: await interaction.response.send_message("❌ Gak ada giveaway yang lagi jalan di channel ini!", ephemeral=True); return
     gid, data = found; await interaction.response.send_message("🎉 Giveaway diakhiri lebih cepat! Mengundi pemenang...", ephemeral=True); await end_giveaway(interaction.guild, interaction.channel.id, data.get("message_id"), gid)
-
 @bot.tree.command(name="market-rules", description="Kirim aturan market")
 async def market_rules(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("❌ Hanya Owner!", ephemeral=True); return
@@ -499,7 +479,6 @@ async def market_rules_prefix(ctx):
 async def ping(interaction: discord.Interaction): await interaction.response.send_message(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
 @bot.command(name="ping")
 async def ping_prefix(ctx): await ctx.send(f"Pong! 🏓 MIPI STORE online Wal! {round(bot.latency*1000)}ms")
-
 @bot.tree.command(name="checkavatar", description="Mengecek detail profil dan avatar akun Roblox dengan username")
 async def checkavatar(interaction: discord.Interaction, username: str):
     await interaction.response.defer()
@@ -526,7 +505,6 @@ async def checkavatar(interaction: discord.Interaction, username: str):
             view = discord.ui.View(); view.add_item(discord.ui.Button(label="👤 Buka Profil Roblox", style=discord.ButtonStyle.link, url=profil_url, emoji="🔍")); view.add_item(discord.ui.Button(label="🎮 Lihat Avatar 3D", style=discord.ButtonStyle.link, url=profil_url))
             await interaction.followup.send(embed=e, view=view)
     except Exception as ex: await interaction.followup.send(f"❌ Gagal cek avatar: {ex}")
-
 @bot.tree.command(name="cekrbx", description="Link untuk mengecek riwayat transaksi Robux Gamepass")
 async def cekrbx(interaction: discord.Interaction, username: str = None, link_gamepass: str = None):
     await interaction.response.defer(ephemeral=True)
@@ -547,7 +525,6 @@ async def cekrbx(interaction: discord.Interaction, username: str = None, link_ga
     e.add_field(name="📖 CARA CEK", value="1. Login Roblox di browser\n2. Buka link Transaksi di atas\n3. Pilih Penjualan / Pembelian\n4. Kalau Pending, tunggu 3-7 hari (Hold Roblox)", inline=False)
     e.set_footer(text="MIPI STORE • Kalau belum masuk 3 hari, buka tiket di #open-ticket")
     await interaction.followup.send(embed=e, ephemeral=True)
-
 @bot.tree.command(name="setup-cek", description="Buatin channel cek yang estetik otomatis (Owner only)")
 async def setup_cek(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("❌ Hanya Owner!", ephemeral=True); return
@@ -560,7 +537,6 @@ async def setup_cek(interaction: discord.Interaction):
     e2 = discord.Embed(color=0xff69b4); e2.description = "## 💰・CEK RIWAYAT ROBUX\n━━━━━━━━━━━━━━━━━━━━━━\nRobux belum masuk? Cek sendiri disini! ✨\n\n### 📝 CARA PAKAI\n```\n/cekrbx username: usernameRobloxKamu\n```\n### 🔗 LINK RESMI\n[📦 Cek Transaksi](https://www.roblox.com/transactions)\n[⏳ Cek Pending](https://www.roblox.com/transactions#pending-robux)"; e2.set_image(url=QRIS_URL); e2.set_footer(text="MIPI STORE • /cekrbx")
     await ch1.send(embed=e1); await ch2.send(embed=e2)
     await interaction.followup.send(embed=discord.Embed(color=0x57f287, description=f"## ✅ BERHASIL DIBUAT! 🎉\n📂 Kategori: **{cat.name}**\n🔍 Channel: {ch1.mention}\n💰 Channel: {ch2.mention}"), ephemeral=True)
-
 def get_openclose_channel(guild):
     ch = guild.get_channel(OPEN_CLOSE_CHANNEL_ID)
     if ch: return ch
@@ -607,7 +583,7 @@ async def close_prefix(ctx):
     if not is_admin_or_owner(ctx.author, ctx.guild): await ctx.send("❌ Hanya Admin / Owner!"); return
     await kirim_status_openclose(ctx.guild, "closed"); await ctx.send("✅ **MIPI STORE udah CLOSED!** 🔴")
 
-# ===== REKBER MIPI - PERSIS CHLOE TAPI PINK 💗 - FIX 2 KOTAK =====
+# ===== REKBER MIPI - PANEL PINK + FORM CLASSIC =====
 rekber_data = {}; rekber_counter = 0; rekber_history = []
 REKBER_FEES = [("Rp 1.000 - Rp 9.000", 1000, 9000, 1500), ("Rp 10.000 - Rp 49.000", 10000, 49000, 1500), ("Rp 50.000 - Rp 99.000", 50000, 99000, 1500), ("Rp 100.000 - Rp 199.000", 100000, 199000, 2500), ("Rp 200.000 - Rp 499.000", 200000, 499000, 4000), ("Rp 500.000 - Rp 1.000.000", 500000, 1000000, 7000), ("Di atas Rp 1.000.000", 1000001, 999999999, 10000)]
 def get_fee_rekber(harga):
@@ -617,7 +593,12 @@ def get_fee_rekber(harga):
 def get_rekber_state(user_id):
     if user_id not in rekber_data: rekber_data[user_id] = {"rentang": None, "fee": 0, "rentang_label": "-", "buyer_id": None, "seller_id": None, "fee_by": None, "jenis": "-", "harga": 0, "harga_text": "-"}
     return rekber_data[user_id]
-class RekberDetailModalV2(discord.ui.Modal, title="Detail Barang Middleman"):
+def rekber_embed(user_id):
+    st = get_rekber_state(user_id)
+    e = discord.Embed(title="🎫 Ticket Middleman", color=0xFF69B4)
+    e.description = f"• Rentang Transaksi: {st['rentang_label']}\n• Fee Rekber: {format_rp(st['fee']) if st['fee'] else '-'}\n• Buyer: {f'<@{st['buyer_id']}>' if st['buyer_id'] else '-'}\n• Seller: {f'<@{st['seller_id']}>' if st['seller_id'] else '-'}\n• Fee Ditanggung: {st['fee_by'] or '-'}\n• Jenis Barang: {st['jenis']}\n• Harga Barang: {st['harga_text']}\n\nPilih rentang harga transaksi, pilih buyer/seller, pilih yang bayar fee, lalu isi detail barang."
+    return e
+class RekberDetailModalClassic(discord.ui.Modal, title="Detail Barang Middleman"):
     def __init__(self, user_id, parent_view): super().__init__(); self.user_id = user_id; self.parent_view = parent_view
     jenis = discord.ui.TextInput(label="Jenis Barang", placeholder="Contoh: Nama Item/Akun Roblox/Robux/Dll.", required=True, max_length=100)
     harga = discord.ui.TextInput(label="Harga Barang (angka saja)", placeholder="Contoh: 100000 atau 100.000", required=True, max_length=20)
@@ -625,7 +606,8 @@ class RekberDetailModalV2(discord.ui.Modal, title="Detail Barang Middleman"):
         hb = self.harga.value.replace(".", "").replace(",", "").replace("Rp", "").replace(" ", "")
         try: harga_int = int(hb)
         except: await interaction.response.send_message("❌ Harga harus angka!", ephemeral=True); return
-        st = get_rekber_state(self.user_id); st["jenis"] = self.jenis.value; st["harga"] = harga_int; st["harga_text"] = format_rp(harga_int); self.parent_view.build(); await interaction.response.edit_message(view=self.parent_view)
+        st = get_rekber_state(self.user_id); st["jenis"] = self.jenis.value; st["harga"] = harga_int; st["harga_text"] = format_rp(harga_int)
+        await interaction.response.edit_message(embed=rekber_embed(self.user_id), view=self.parent_view)
 class RekberStatusView(discord.ui.View):
     def __init__(self, rekber_id, data): super().__init__(timeout=None); self.rekber_id = rekber_id; self.data = data
     @discord.ui.button(label="💳 Buyer Sudah Bayar", style=discord.ButtonStyle.primary, custom_id="rekber_bayar")
@@ -648,8 +630,6 @@ class RekberStatusView(discord.ui.View):
         await asyncio.sleep(10)
         try: await interaction.channel.delete()
         except: pass
-
-# ===== PANEL MIPI - PERSIS CHLOE TAPI PINK DI SAMPING =====
 class RekberPanelLayout(discord.ui.LayoutView):
     def __init__(self, guild):
         super().__init__(timeout=None); self.guild = guild
@@ -667,55 +647,36 @@ class RekberPanelLayout(discord.ui.LayoutView):
         container.add_item(discord.ui.TextDisplay("Untuk membuat ticket middleman, klik tombol di bawah lalu pilih **buyer** dan **seller** dari dropdown member Discord."))
         container.add_item(discord.ui.Separator(visible=True))
         btn_buat = discord.ui.Button(label="Buat Ticket Middleman", style=discord.ButtonStyle.secondary, custom_id="rekber_buat_ticket", emoji="🎫")
-        btn_buat.callback = self.buat_ticket_cb
         container.add_item(discord.ui.ActionRow(btn_buat))
         self.add_item(container)
-    async def buat_ticket_cb(self, interaction: discord.Interaction):
-        if STORE_STATUS != "open": await interaction.response.send_message("🔴 MIPI lagi BREAK / CLOSED! Rekber buka lagi pas OPEN ya!", ephemeral=True); return
-        rekber_data[interaction.user.id] = {"rentang": None, "fee": 0, "rentang_label": "-", "buyer_id": None, "seller_id": None, "fee_by": None, "jenis": "-", "harga": 0, "harga_text": "-"}
-        view = RekberFormV2Pink(interaction.user.id)
-        await interaction.response.send_message(view=view, ephemeral=True)
-
-# ===== FORM TICKET MIDDLEMAN - 2 KOTAK PINK, BIAR GA LIMIT 10 =====
-class RekberFormV2Pink(discord.ui.LayoutView):
+class RekberFormClassic(discord.ui.View):
     def __init__(self, user_id):
-        super().__init__(timeout=600); self.user_id = user_id; self.build()
-    def build(self):
-        st = get_rekber_state(self.user_id); self.clear_items()
-        c1 = discord.ui.Container(accent_colour=discord.Colour(0xFF69B4))
-        c1.add_item(discord.ui.TextDisplay(f"## 🎫 Ticket Middleman\n• Rentang Transaksi: {st['rentang_label']}\n• Fee Rekber: {format_rp(st['fee']) if st['fee'] else '-'}\n• Buyer: {f'<@{st['buyer_id']}>' if st['buyer_id'] else '-'}\n• Seller: {f'<@{st['seller_id']}>' if st['seller_id'] else '-'}\n• Fee Ditanggung: {st['fee_by'] or '-'}\n• Jenis Barang: {st['jenis']}\n• Harga Barang: {st['harga_text']}"))
-        c1.add_item(discord.ui.Separator(visible=True))
-        c1.add_item(discord.ui.TextDisplay("Pilih rentang harga transaksi."))
-        rentang = discord.ui.StringSelect(placeholder="Pilih rentang transaksi", custom_id="rekber_rentang", options=[discord.SelectOption(label="Rp 1.000 - Rp 9.000", description="Fee: Rp 1.500", value="0"), discord.SelectOption(label="Rp 10.000 - Rp 49.000", description="Fee: Rp 1.500", value="1"), discord.SelectOption(label="Rp 50.000 - Rp 99.000", description="Fee: Rp 1.500", value="2"), discord.SelectOption(label="Rp 100.000 - Rp 199.000", description="Fee: Rp 2.500", value="3"), discord.SelectOption(label="Rp 200.000 - Rp 499.000", description="Fee: Rp 4.000", value="4"), discord.SelectOption(label="Rp 500.000 - Rp 1.000.000", description="Fee: Rp 7.000", value="5"), discord.SelectOption(label="Di atas Rp 1.000.000", description="Fee: Rp 10.000", value="6")]); rentang.callback = self.pilih_rentang; c1.add_item(discord.ui.ActionRow(rentang))
-        c1.add_item(discord.ui.TextDisplay("Klik jika pembelinya kamu ->"))
-        b1 = discord.ui.Button(label="Saya", style=discord.ButtonStyle.primary, custom_id="saya_buyer"); b1.callback = self.saya_buyer
-        c1.add_item(discord.ui.ActionRow(b1))
-        u1 = discord.ui.UserSelect(placeholder="Pilih buyer", custom_id="pilih_buyer"); u1.callback = self.pilih_buyer_cb
-        c1.add_item(discord.ui.ActionRow(u1))
-        c1.add_item(discord.ui.TextDisplay("Klik jika penjualnya kamu ->"))
-        b2 = discord.ui.Button(label="Saya", style=discord.ButtonStyle.primary, custom_id="saya_seller"); b2.callback = self.saya_seller
-        c1.add_item(discord.ui.ActionRow(b2))
-        u2 = discord.ui.UserSelect(placeholder="Pilih seller", custom_id="pilih_seller"); u2.callback = self.pilih_seller_cb
-        c1.add_item(discord.ui.ActionRow(u2))
-        self.add_item(c1)
-        c2 = discord.ui.Container(accent_colour=discord.Colour(0xFF69B4))
-        c2.add_item(discord.ui.TextDisplay("Pilih yang bayar fee rekber."))
-        fee_by = discord.ui.StringSelect(placeholder="Fee rekber ditanggung oleh...", custom_id="fee_by", options=[discord.SelectOption(label="Pembeli", value="Pembeli"), discord.SelectOption(label="Penjual", value="Penjual"), discord.SelectOption(label="Split (50:50)", value="Split (50:50)")]); fee_by.callback = self.pilih_fee_by; c2.add_item(discord.ui.ActionRow(fee_by))
-        btn_detail = discord.ui.Button(label="Isi Detail Barang", style=discord.ButtonStyle.primary, custom_id="isi_detail", emoji="📝"); btn_detail.callback = self.isi_detail; c2.add_item(discord.ui.ActionRow(btn_detail))
-        btn_buat = discord.ui.Button(label="Buat Ticket", style=discord.ButtonStyle.success, custom_id="buat_ticket", emoji="✅"); btn_buat.callback = self.buat_ticket
-        btn_batal = discord.ui.Button(label="Batal", style=discord.ButtonStyle.danger, custom_id="batal", emoji="❌"); btn_batal.callback = self.batal
-        c2.add_item(discord.ui.ActionRow(btn_buat, btn_batal))
-        self.add_item(c2)
-    async def refresh(self, interaction): self.build(); await interaction.response.edit_message(view=self)
-    async def pilih_rentang(self, interaction):
-        idx = int(interaction.data["values"][0]); label, mn, mx, fee = REKBER_FEES[idx]; st = get_rekber_state(self.user_id); st["rentang_label"] = label; st["fee"] = fee; await self.refresh(interaction)
-    async def saya_buyer(self, interaction): st = get_rekber_state(self.user_id); st["buyer_id"] = interaction.user.id; await self.refresh(interaction)
-    async def pilih_buyer_cb(self, interaction): st = get_rekber_state(self.user_id); st["buyer_id"] = int(interaction.data["values"][0]); await self.refresh(interaction)
-    async def saya_seller(self, interaction): st = get_rekber_state(self.user_id); st["seller_id"] = interaction.user.id; await self.refresh(interaction)
-    async def pilih_seller_cb(self, interaction): st = get_rekber_state(self.user_id); st["seller_id"] = int(interaction.data["values"][0]); await self.refresh(interaction)
-    async def pilih_fee_by(self, interaction): st = get_rekber_state(self.user_id); st["fee_by"] = interaction.data["values"][0]; await self.refresh(interaction)
-    async def isi_detail(self, interaction): await interaction.response.send_modal(RekberDetailModalV2(self.user_id, self))
-    async def buat_ticket(self, interaction):
+        super().__init__(timeout=600); self.user_id = user_id
+    async def refresh(self, interaction):
+        await interaction.response.edit_message(embed=rekber_embed(self.user_id), view=self)
+    @discord.ui.select(placeholder="Pilih rentang transaksi", custom_id="rekber_rentang", options=[discord.SelectOption(label="Rp 1.000 - Rp 9.000", description="Fee: Rp 1.500", value="0"), discord.SelectOption(label="Rp 10.000 - Rp 49.000", description="Fee: Rp 1.500", value="1"), discord.SelectOption(label="Rp 50.000 - Rp 99.000", description="Fee: Rp 1.500", value="2"), discord.SelectOption(label="Rp 100.000 - Rp 199.000", description="Fee: Rp 2.500", value="3"), discord.SelectOption(label="Rp 200.000 - Rp 499.000", description="Fee: Rp 4.000", value="4"), discord.SelectOption(label="Rp 500.000 - Rp 1.000.000", description="Fee: Rp 7.000", value="5"), discord.SelectOption(label="Di atas Rp 1.000.000", description="Fee: Rp 10.000", value="6")], row=0)
+    async def pilih_rentang(self, interaction: discord.Interaction, select: discord.ui.Select):
+        idx = int(select.values[0]); label, mn, mx, fee = REKBER_FEES[idx]; st = get_rekber_state(self.user_id); st["rentang_label"] = label; st["fee"] = fee; await self.refresh(interaction)
+    @discord.ui.button(label="Saya = Buyer", style=discord.ButtonStyle.primary, custom_id="saya_buyer", row=1)
+    async def saya_buyer(self, interaction: discord.Interaction, button: discord.ui.Button):
+        st = get_rekber_state(self.user_id); st["buyer_id"] = interaction.user.id; await self.refresh(interaction)
+    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="Pilih buyer", custom_id="pilih_buyer", row=2)
+    async def pilih_buyer_cb(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        st = get_rekber_state(self.user_id); st["buyer_id"] = int(select.values[0].id); await self.refresh(interaction)
+    @discord.ui.button(label="Saya = Seller", style=discord.ButtonStyle.primary, custom_id="saya_seller", row=3)
+    async def saya_seller(self, interaction: discord.Interaction, button: discord.ui.Button):
+        st = get_rekber_state(self.user_id); st["seller_id"] = interaction.user.id; await self.refresh(interaction)
+    @discord.ui.select(cls=discord.ui.UserSelect, placeholder="Pilih seller", custom_id="pilih_seller", row=4)
+    async def pilih_seller_cb(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        st = get_rekber_state(self.user_id); st["seller_id"] = int(select.values[0].id); await self.refresh(interaction)
+    @discord.ui.select(placeholder="Fee rekber ditanggung oleh...", custom_id="fee_by", options=[discord.SelectOption(label="Pembeli", value="Pembeli"), discord.SelectOption(label="Penjual", value="Penjual"), discord.SelectOption(label="Split (50:50)", value="Split (50:50)")], row=5)
+    async def pilih_fee_by(self, interaction: discord.Interaction, select: discord.ui.Select):
+        st = get_rekber_state(self.user_id); st["fee_by"] = select.values[0]; await self.refresh(interaction)
+    @discord.ui.button(label="📝 Isi Detail Barang", style=discord.ButtonStyle.primary, custom_id="isi_detail", row=6)
+    async def isi_detail(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(RekberDetailModalClassic(self.user_id, self))
+    @discord.ui.button(label="✅ Buat Ticket", style=discord.ButtonStyle.success, custom_id="buat_ticket", row=7)
+    async def buat_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         global rekber_counter; st = get_rekber_state(self.user_id)
         if not st["rentang_label"] or st["rentang_label"] == "-" or not st["buyer_id"] or not st["seller_id"] or not st["fee_by"] or st["jenis"] == "-" or st["harga"] == 0: await interaction.response.send_message("❌ Lengkapi semua field dulu: rentang, buyer, seller, fee ditanggung oleh, jenis barang, dan harga barang.", ephemeral=True); return
         if st["buyer_id"] == st["seller_id"]: await interaction.response.send_message("❌ Buyer dan seller tidak boleh user yang sama.", ephemeral=True); return
@@ -730,10 +691,21 @@ class RekberFormV2Pink(discord.ui.LayoutView):
         await channel.send(embed=discord.Embed(title="💳 Buyer Transfer Kesini", description=f"Total: {format_rp(total_buyer)}", color=0xFF69B4).set_image(url=QRIS_URL))
         rekber_history.append({"id": rekber_counter, "buyer": buyer.name, "buyer_id": st["buyer_id"], "seller": seller.name, "seller_id": st["seller_id"], "jenis": st["jenis"], "harga": st["harga"], "fee": fee, "fee_by": st["fee_by"], "status": "BERJALAN", "waktu": datetime.now().isoformat(), "channel": channel.name})
         del rekber_data[self.user_id]; await interaction.response.send_message(f"✅ Ticket Rekber dibuat! 🎫 {channel.mention}", ephemeral=True)
-    async def batal(self, interaction):
+    @discord.ui.button(label="❌ Batal", style=discord.ButtonStyle.danger, custom_id="batal", row=7)
+    async def batal(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.user_id in rekber_data: del rekber_data[self.user_id]
-        await interaction.response.edit_message(content="❌ Pembuatan Ticket Rekber dibatalkan.", view=None)
-
+        await interaction.response.edit_message(content="❌ Pembuatan Ticket Rekber dibatalkan.", embed=None, view=None)
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    try: cid = interaction.data.get("custom_id", "") if interaction.data else ""
+    except: cid = ""
+    if cid != "rekber_buat_ticket": return
+    if interaction.response.is_done(): return
+    if STORE_STATUS != "open":
+        await interaction.response.send_message("🔴 MIPI lagi BREAK / CLOSED! Rekber buka lagi pas OPEN ya!", ephemeral=True); return
+    rekber_data[interaction.user.id] = {"rentang": None, "fee": 0, "rentang_label": "-", "buyer_id": None, "seller_id": None, "fee_by": None, "jenis": "-", "harga": 0, "harga_text": "-"}
+    view = RekberFormClassic(interaction.user.id)
+    await interaction.response.send_message(embed=rekber_embed(interaction.user.id), view=view, ephemeral=True)
 def get_history_rekber_channel(guild):
     for ch in guild.text_channels:
         if "history" in ch.name.lower() and ("rekber" in ch.name.lower() or "midman" in ch.name.lower()): return ch
