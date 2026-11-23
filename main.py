@@ -1,5 +1,4 @@
-# ===== MIPI STORE - PART 1 / 2 - VERSI BARU: PENDING + TOP SULTAN AUTO =====
-# CARA PAKE: Copy Part 1 ini, terus lanjut tempel Part 2 di bawahnya!
+# ===== MIPI STORE - PART 1 / 2 - VERSI BARU: PENDING + TOP SULTAN + EDIT PRICELIST DI DC =====
 import discord
 from discord.ext import commands, tasks
 import os, time, io, html, re, asyncio, json, random, string, aiohttp
@@ -24,7 +23,7 @@ STORE_STATUS = "open"
 STORE_STATUS_MSG = ""
 OPEN_CLOSE_CHANNEL_ID = 1569135504262299689
 
-# ===== PRICELIST =====
+# ===== PRICELIST - DINAMIS =====
 PRICELIST_FILE = "pricelist.json"
 DEFAULT_PRICELIST = {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000}
 def load_pricelist():
@@ -42,7 +41,25 @@ def get_harga(robux):
 def format_rp(nominal): return f"Rp {nominal:,}".replace(",", ".")
 PRICELIST = load_pricelist()
 
-# ===== LEADERBOARD + PENDING SALDO (BARU!) =====
+def build_pricelist_text():
+    data = load_pricelist()
+    fast = ""
+    ecer = ""
+    for rbx in sorted(data.keys()):
+        harga = format_rp(data[rbx])
+        if rbx >= 500:
+            fast += f"{rbx} = {harga}\n"
+        else:
+            ecer += f"{rbx} = {harga}\n"
+    return f"{fast}\nRobux Eceran\n{ecer}\nCara Order\nClick tombol ORDER ROBUX dibawah, isi formulir, lalu tunggu admin. Pembayaran hanya QRIS."
+
+def build_pricelist_embed():
+    e = discord.Embed(title="PRICELIST ROBUX FAST SEND", description=build_pricelist_text(), color=0xff69b4)
+    e.set_image(url=QRIS_URL)
+    e.set_footer(text="Mipi Store - Rafi Store")
+    return e
+
+# ===== LEADERBOARD + PENDING SALDO =====
 LEADERBOARD_FILE = "leaderboard.json"
 def load_leaderboard():
     try:
@@ -85,7 +102,7 @@ def add_to_pending(user_id, username, paket_text, ticket_number, channel_name=""
     data[order_id] = {"user_id": str(user_id), "username": username, "paket": paket_text, "robux": jumlah, "harga": harga, "ticket_number": ticket_number, "channel": channel_name, "waktu": datetime.now().strftime("%d %b %Y %H:%M")}
     save_pending(data); return order_id
 
-# ===== TOP SULTAN AUTO (BARU! KAYA DI VIDEO) =====
+# ===== TOP SULTAN AUTO =====
 def get_top_sultan_channel(guild):
     for ch in guild.text_channels:
         if "top-sultan" in ch.name.lower() or "top-leaderboard" in ch.name.lower(): return ch
@@ -284,7 +301,7 @@ async def send_vouch(guild, user, paket, stars, komentar, ticket_number=0, ticke
             thread = await msg.create_thread(name=thread_name, auto_archive_duration=1440); await thread.send("Vouch dari " + user.mention + "\n\nPaket: " + paket + " (" + harga + ")\nRating: " + star_str + "\nKomentar: " + komentar + "\nTicket: " + ticket_name)
     except Exception as e: print(f"Gagal buat thread vouch: {e}")
 
-# ===== AUTO CLOSE - UDAH DIUBAH: MASUK PENDING DULU! =====
+# ===== AUTO CLOSE - MASUK PENDING DULU =====
 async def do_auto_close(guild, channel, data, reason="auto-closed due to inactivity", admin_user=None):
     number = data["number"]; user_id = data["user_id"]; paket = data.get("paket", "ORDER ROBUX"); created = data["created_at"]; duration = int((time.time() - created)//60)
     if duration < 1: duration = 1
@@ -303,7 +320,6 @@ async def do_auto_close(guild, channel, data, reason="auto-closed due to inactiv
     try:
         user = await bot.fetch_user(user_id); closer = admin_user.name if admin_user else "MIPI STORE (Auto-Close)"; embed = discord.Embed(title="Rate Your Experience", description="Hi " + user.name + "! Your support ticket has been resolved.\nPlease rate your experience by clicking a star below.\n\nTicket #" + str(number) + " in ORDER ROBUX\nResolved in\n" + str(duration) + " minutes\n\nClosed by\n" + closer, color=0x2b2d31); await user.send(embed=embed, view=RatingView(number))
     except: pass
-    # === BARU: GA LANGSUNG MASUK LEADERBOARD ===
     try:
         order_id = add_to_pending(user_id, data.get("username", "User"), paket, number, channel.name if channel else "")
         if order_id:
@@ -432,8 +448,7 @@ class OrderView(discord.ui.View):
             embed = discord.Embed(color=0xff0000); embed.description = "MIPI STORE UDAH TUTUP! 💤\n\nMohon maaf yaa, toko udah TUTUP!\n\nTicket lagi dikunci biar ga numpuk!\nOrderan kamu bakal dibales besok pas Mimin OPEN lagi!\n\nMakasih udah mampir hari ini! Sampai ketemu besok! 💗"; await interaction.response.send_message(embed=embed, ephemeral=True); return
         await interaction.response.send_modal(OrderModal())
 
-# ===== END PART 1 - JANGAN RUN DULU, LANJUT PART 2! =====
-# ===== PART 2 / 2 - LANJUTAN PART 1 =====
+# ===== END PART 1 - LANJUT PART 2 DI BAWAHNYA! =====
 @bot.event
 async def on_message(message):
     if message.author.bot: return
@@ -466,22 +481,118 @@ async def on_ready():
     try: await bot.tree.sync()
     except Exception as e: print(f"Sync error: {e}")
 
-# ===== COMMAND: TICKET =====
+# ===== COMMAND: TICKET - UDAH DINAMIS =====
 @bot.tree.command(name="ticket", description="Tampilkan panel order MIPI STORE")
 async def ticket(interaction: discord.Interaction):
     if STORE_STATUS != "open":
         status_text = "BREAK - Mimin break 15-30 menit!" if STORE_STATUS == "break" else "CLOSED - Toko tutup, balik besok yaa!"
         await interaction.response.send_message(status_text + "\n\nTicket lagi dikunci sementara biar ga spam! Tunggu OPEN lagi yaa! 💗", ephemeral=True); return
     embed1 = discord.Embed(title="Mipi Store - Order Robux 💗", description="ROBUX VIA USERNAME\nFast Process - Aman - Instan\n\nSyarat top up via username:\n>> SUDAH 18+\n>> SUDAH TERVERIFIKASI 2 LANGKAH", color=0xff69b4); embed1.set_image(url=WELCOME_URL)
-    embed2 = discord.Embed(title="PRICELIST ROBUX FAST SEND", description="500 = Rp 75.000\n1000 = Rp 150.000\n2000 = Rp 300.000\n3000 = Rp 450.000\n4000 = Rp 600.000\n5000 = Rp 750.000\n\nRobux Eceran\n100 = Rp 16.000\n200 = Rp 32.000\n300 = Rp 48.000\n400 = Rp 64.000\n\nCara Order\nClick tombol ORDER ROBUX dibawah, isi formulir, lalu tunggu admin. Pembayaran hanya QRIS.", color=0xff69b4); embed2.set_image(url=QRIS_URL); embed2.set_footer(text="Mipi Store - Rafi Store")
+    embed2 = build_pricelist_embed()
     await interaction.response.send_message(embed=embed1); await interaction.followup.send(embed=embed2, view=OrderView())
 @bot.tree.command(name="setup-ticket", description="Kirim panel ticket order (Owner only)")
 async def setup_ticket(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
     embed1 = discord.Embed(title="Mipi Store - Order Robux 💗", description="ROBUX VIA USERNAME\nFast Process - Aman - Instan\n\nSyarat top up via username:\n>> SUDAH 18+\n>> SUDAH TERVERIFIKASI 2 LANGKAH", color=0xff69b4); embed1.set_image(url=WELCOME_URL); await interaction.response.send_message(embed=embed1)
-    embed2 = discord.Embed(title="PRICELIST ROBUX FAST SEND", description="500 = Rp 75.000\n1000 = Rp 150.000\n2000 = Rp 300.000\n3000 = Rp 450.000\n4000 = Rp 600.000\n5000 = Rp 750.000\n\nRobux Eceran\n100 = Rp 16.000\n200 = Rp 32.000\n300 = Rp 48.000\n400 = Rp 64.000", color=0xff69b4); embed2.set_image(url=QRIS_URL); embed2.set_footer(text="Mipi Store - Rafi Store"); await interaction.followup.send(embed=embed2, view=OrderView())
+    embed2 = build_pricelist_embed(); await interaction.followup.send(embed=embed2, view=OrderView())
 
-# ===== COMMAND: SALDO + TOP SULTAN + PENDING (BARU!) =====
+# ===== EDIT PRICELIST DI DC AJA - BARU! =====
+class EditHargaModal(discord.ui.Modal, title="Ubah Harga"):
+    def __init__(self, robux_lama):
+        super().__init__()
+        self.robux_lama = robux_lama
+        self.harga_input = discord.ui.TextInput(label=f"Harga Baru untuk {robux_lama} Robux", placeholder="Contoh: 80000", required=True)
+        self.add_item(self.harga_input)
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            harga_baru = int(self.harga_input.value.replace(".", "").replace(",", "").replace("Rp", "").strip())
+        except:
+            await interaction.response.send_message("❌ Harga harus angka! Contoh: 80000", ephemeral=True); return
+        data = load_pricelist()
+        data[self.robux_lama] = harga_baru
+        save_pricelist(data)
+        await interaction.response.send_message(f"✅ BERHASIL!\n{self.robux_lama} Robux ➡️ {format_rp(harga_baru)}\nTicket udah ke update otomatis! Jalankan /ticket lagi buat liat!", ephemeral=True)
+
+class TambahPaketModal(discord.ui.Modal, title="Tambah Paket Baru"):
+    robux_input = discord.ui.TextInput(label="Jumlah Robux", placeholder="Contoh: 600", required=True)
+    harga_input = discord.ui.TextInput(label="Harga", placeholder="Contoh: 90000", required=True)
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            rbx = int(self.robux_input.value.strip())
+            harga = int(self.harga_input.value.replace(".", "").replace("Rp", "").strip())
+        except:
+            await interaction.response.send_message("❌ Harus angka semua!", ephemeral=True); return
+        data = load_pricelist()
+        data[rbx] = harga
+        save_pricelist(data)
+        await interaction.response.send_message(f"✅ Paket baru ditambah!\n{rbx} Robux = {format_rp(harga)}", ephemeral=True)
+
+class PricelistEditView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        data = load_pricelist()
+        options = []
+        for rbx in sorted(data.keys()):
+            options.append(discord.SelectOption(label=f"{rbx} Robux - {format_rp(data[rbx])}", value=str(rbx)))
+        select = discord.ui.Select(placeholder="Pilih paket yang mau diubah...", options=options[:25], custom_id="pilih_paket_edit")
+        select.callback = self.pilih_paket
+        self.add_item(select)
+    async def pilih_paket(self, interaction: discord.Interaction):
+        if interaction.user.id != interaction.guild.owner_id:
+            await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
+        robux = int(interaction.data["values"][0])
+        await interaction.response.send_modal(EditHargaModal(robux))
+    @discord.ui.button(label="➕ Tambah Paket Baru", style=discord.ButtonStyle.success, custom_id="tambah_paket_btn")
+    async def tambah_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != interaction.guild.owner_id:
+            await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
+        await interaction.response.send_modal(TambahPaketModal())
+    @discord.ui.button(label="👀 Lihat Pricelist", style=discord.ButtonStyle.primary, custom_id="lihat_pricelist_btn")
+    async def lihat_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(embed=build_pricelist_embed(), ephemeral=True)
+
+@bot.tree.command(name="edit-pricelist", description="Edit pricelist langsung di DC - klik klik aja! (Owner)")
+async def edit_pricelist(interaction: discord.Interaction):
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
+    embed = discord.Embed(title="✏️ EDIT PRICELIST - DI DC AJA!", description="Ga usah buka website!\n\n1. Pilih paket di dropdown bawah\n2. Ketik harga baru\n3. Beres! Ticket langsung ke update!\n\nPricelist sekarang:\n\n" + build_pricelist_text(), color=0xff69b4)
+    await interaction.response.send_message(embed=embed, view=PricelistEditView(), ephemeral=True)
+
+@bot.tree.command(name="set-harga", description="Ubah harga Robux cepat (Owner)")
+async def set_harga(interaction: discord.Interaction, robux: int, harga_baru: int):
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
+    data = load_pricelist()
+    harga_lama = data.get(robux, 0)
+    data[robux] = harga_baru
+    save_pricelist(data)
+    await interaction.response.send_message(f"✅ Harga berubah!\n{robux} Robux: {format_rp(harga_lama)} ➡️ {format_rp(harga_baru)}\nTicket udah otomatis ke update!")
+
+@bot.tree.command(name="tambah-harga", description="Tambah paket baru (Owner)")
+async def tambah_harga(interaction: discord.Interaction, robux: int, harga: int):
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
+    data = load_pricelist()
+    data[robux] = harga
+    save_pricelist(data)
+    await interaction.response.send_message(f"✅ Paket baru ditambah!\n{robux} = {format_rp(harga)}")
+
+@bot.tree.command(name="hapus-harga", description="Hapus paket (Owner)")
+async def hapus_harga(interaction: discord.Interaction, robux: int):
+    if interaction.user.id != interaction.guild.owner_id:
+        await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
+    data = load_pricelist()
+    if robux not in data:
+        await interaction.response.send_message("Paket ga ketemu!", ephemeral=True); return
+    del data[robux]
+    save_pricelist(data)
+    await interaction.response.send_message(f"✅ {robux} Robux udah dihapus!")
+
+@bot.tree.command(name="lihat-harga", description="Lihat pricelist sekarang")
+async def lihat_harga(interaction: discord.Interaction):
+    await interaction.response.send_message(embed=build_pricelist_embed())
+
+# ===== COMMAND: SALDO + TOP SULTAN + PENDING =====
 @bot.tree.command(name="leaderboard", description="Lihat Top Buyer MIPI STORE bulan ini")
 async def leaderboard(interaction: discord.Interaction):
     await interaction.response.send_message(embed=build_top_sultan_embed())
@@ -711,97 +822,19 @@ async def close_prefix(ctx):
     if not is_admin_or_owner(ctx.author, ctx.guild): await ctx.send("Hanya Admin / Owner!"); return
     await kirim_status_openclose(ctx.guild, "closed"); await ctx.send("MIPI STORE udah CLOSED!")
 
-# ===== REKBER MIPI - LENGKAP! =====
-rekber_data = {}; rekber_counter = 0; rekber_history = []
+# ===== REKBER MIPI - SIMPEL =====
+rekber_data = {}; rekber_counter = 0
 REKBER_FEES = [("Rp 1.000 - Rp 9.000", 1000, 9000, 1500), ("Rp 10.000 - Rp 49.000", 10000, 49000, 1500), ("Rp 50.000 - Rp 99.000", 50000, 99000, 1500), ("Rp 100.000 - Rp 199.000", 100000, 199000, 2500), ("Rp 200.000 - Rp 499.000", 200000, 499000, 4000), ("Rp 500.000 - Rp 1.000.000", 500000, 1000000, 7000), ("Di atas Rp 1.000.000", 1000001, 999999999, 10000)]
 def get_fee_rekber(harga):
     for label, mn, mx, fee in REKBER_FEES:
-        if mn <= harga <= mx: return label, fee
-    return "Di atas Rp 1.000.000", 10000
-class RekberModal(discord.ui.Modal, title="Buat Ticket Middleman"):
-    buyer_input = discord.ui.TextInput(label="Buyer (tag / username)", placeholder="Contoh: @nama_buyer atau isi ID buyer", required=True, max_length=100)
-    seller_input = discord.ui.TextInput(label="Seller (tag / username)", placeholder="Contoh: @nama_seller atau isi ID seller", required=True, max_length=100)
-    jenis = discord.ui.TextInput(label="Jenis Barang", placeholder="Contoh: Akun Roblox / Robux / Item", required=True, max_length=100)
-    harga = discord.ui.TextInput(label="Harga Barang (angka saja)", placeholder="Contoh: 100000", required=True, max_length=20)
-    fee_by = discord.ui.TextInput(label="Fee Ditanggung Oleh", placeholder="Ketik: Pembeli / Penjual / Split", required=True, max_length=20, default="Pembeli")
-    async def on_submit(self, interaction: discord.Interaction):
-        global rekber_counter
-        def cari_member(text):
-            text = text.strip(); m = re.search(r'(\d{15,})', text)
-            if m:
-                mem = interaction.guild.get_member(int(m.group(1)))
-                if mem: return mem
-            low = text.lower().replace("@", "").strip()
-            for mem in interaction.guild.members:
-                if mem.name.lower() == low or mem.display_name.lower() == low: return mem
-            return None
-        buyer = cari_member(self.buyer_input.value); seller = cari_member(self.seller_input.value)
-        if not buyer or not seller: await interaction.response.send_message("Buyer / Seller tidak ketemu! Tag yang bener ya, contoh: @RafixMP atau isi ID-nya!", ephemeral=True); return
-        if buyer.id == seller.id: await interaction.response.send_message("Buyer dan seller tidak boleh user yang sama!", ephemeral=True); return
-        hb = self.harga.value.replace(".", "").replace(",", "").replace("Rp", "").replace(" ", "")
-        try: harga_int = int(hb)
-        except: await interaction.response.send_message("Harga harus angka!", ephemeral=True); return
-        fee_by_input = self.fee_by.value.strip().lower()
-        if "penjual" in fee_by_input or "seller" in fee_by_input: fee_by_fix = "Penjual"
-        elif "split" in fee_by_input or "50" in fee_by_input: fee_by_fix = "Split (50:50)"
-        else: fee_by_fix = "Pembeli"
-        label_fee, fee = get_fee_rekber(harga_int)
-        if fee_by_fix == "Pembeli": total_buyer = harga_int + fee; terima_seller = harga_int
-        elif fee_by_fix == "Penjual": total_buyer = harga_int; terima_seller = harga_int - fee
-        else: total_buyer = harga_int + fee//2; terima_seller = harga_int - fee//2
-        rekber_counter += 1; guild = interaction.guild
-        overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), buyer: discord.PermissionOverwrite(read_messages=True, send_messages=True), seller: discord.PermissionOverwrite(read_messages=True, send_messages=True), interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
-        cat = get_ticket_category(guild); channel = await guild.create_text_channel(name="rekber-" + str(rekber_counter) + "-" + buyer.name + "-" + seller.name, overwrites=overwrites, category=cat)
-        embed = discord.Embed(title="REKBER MIPI STORE - #" + str(rekber_counter), description="Buyer: " + buyer.mention + "\nSeller: " + seller.mention + "\nJenis: " + self.jenis.value + "\nHarga: " + format_rp(harga_int) + "\nRentang: " + label_fee + "\nFee: " + format_rp(fee) + " (" + fee_by_fix + ")\nBuyer Transfer: " + format_rp(total_buyer) + "\nSeller Terima: " + format_rp(terima_seller), color=0xFF69B4); embed.set_image(url=WELCOME_URL); await channel.send(buyer.mention + " " + seller.mention + " Ticket Rekber dibuat oleh " + interaction.user.mention + "!", embed=embed, view=RekberStatusView(rekber_counter, {})); await channel.send(embed=discord.Embed(title="Buyer Transfer Kesini", description="Total: " + format_rp(total_buyer), color=0xFF69B4).set_image(url=QRIS_URL)); rekber_history.append({"id": rekber_counter, "buyer": buyer.name, "buyer_id": buyer.id, "seller": seller.name, "seller_id": seller.id, "jenis": self.jenis.value, "harga": harga_int, "fee": fee, "fee_by": fee_by_fix, "status": "BERJALAN", "waktu": datetime.now().isoformat(), "channel": channel.name}); await interaction.response.send_message("Ticket Rekber dibuat! " + channel.mention, ephemeral=True)
-class RekberStatusView(discord.ui.View):
-    def __init__(self, rekber_id, data): super().__init__(timeout=None); self.rekber_id = rekber_id; self.data = data
-    @discord.ui.button(label="💳 Buyer Sudah Bayar", style=discord.ButtonStyle.primary, custom_id="rekber_bayar")
-    async def bayar(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(interaction.user.mention + " konfirmasi Buyer Sudah Bayar! Admin tolong cek mutasi ya!")
-    @discord.ui.button(label="📦 Seller Sudah Kirim", style=discord.ButtonStyle.primary, custom_id="rekber_kirim")
-    async def kirim(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(interaction.user.mention + " konfirmasi Seller Sudah Kirim! Buyer tolong cek barangnya ya!")
-    @discord.ui.button(label="✅ Barang Diterima", style=discord.ButtonStyle.success, custom_id="rekber_terima")
-    async def terima(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(interaction.user.mention + " konfirmasi Barang Diterima! Admin, bisa teruskan duit ke Seller! 💰")
-    @discord.ui.button(label="🎉 Selesai / Close", style=discord.ButtonStyle.success, custom_id="rekber_done")
-    async def done(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.response.send_message("Hanya Admin yang bisa close Rekber!", ephemeral=True); return
-        data_hist = None
-        for h in rekber_history:
-            if h["id"] == self.rekber_id: h["status"] = "SELESAI"; data_hist = h; break
-        if data_hist:
-            guild = interaction.guild; buyer = guild.get_member(data_hist["buyer_id"]) or data_hist["buyer"]; seller = guild.get_member(data_hist["seller_id"]) or data_hist["seller"]; ticket_id = await kirim_history_rekber(guild, self.rekber_id, buyer, seller, data_hist["jenis"], data_hist["harga"], data_hist["fee"], data_hist["fee_by"], interaction.user); await interaction.response.send_message("Rekber REKBER-" + str(self.rekber_id) + " SELESAI!\nTicket ID: " + ticket_id + "\nHistory sudah di-post!\nTicket akan dihapus 10 detik lagi...")
-        else: await interaction.response.send_message("Rekber REKBER-" + str(self.rekber_id) + " SELESAI!")
-        await asyncio.sleep(10)
-        try: await interaction.channel.delete()
-        except: pass
-class RekberPanelView(discord.ui.View):
-    def __init__(self): super().__init__(timeout=None)
-    @discord.ui.button(label="🎫 Buat Ticket Middleman", style=discord.ButtonStyle.primary, custom_id="rekber_buat_ticket")
-    async def buat_ticket_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if STORE_STATUS != "open": await interaction.response.send_message("MIPI lagi BREAK / CLOSED! Rekber buka lagi pas OPEN ya!", ephemeral=True); return
-        await interaction.response.send_modal(RekberModal())
-def get_history_rekber_channel(guild):
-    for ch in guild.text_channels:
-        if "history" in ch.name.lower() and ("rekber" in ch.name.lower() or "midman" in ch.name.lower()): return ch
-    return None
-def buat_ticket_id_rekber():
-    kode = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    return "T-" + kode[:8]
-async def kirim_history_rekber(guild, rekber_id, buyer, seller, jenis, harga, fee, fee_by, admin_user):
-    ch = get_history_rekber_channel(guild) or get_history_channel(guild)
-    if not ch: return "T-UNKNOWN"
-    ticket_id = buat_ticket_id_rekber(); buyer_mention = buyer.mention if hasattr(buyer, "mention") else str(buyer); seller_mention = seller.mention if hasattr(seller, "mention") else str(seller)
-    embed = discord.Embed(title="REKBER SELESAI - " + ticket_id, description=f"Rekber ID: REKBER-{rekber_id}\nBuyer: {buyer_mention}\nSeller: {seller_mention}\nJenis: {jenis}\nHarga: {format_rp(harga)}\nFee: {format_rp(fee)} ({fee_by})\nAdmin: {admin_user.mention}", color=0x57f287); await ch.send(embed=embed); return ticket_id
-@bot.tree.command(name="rekber", description="Bikin panel Rekber / Middleman (Owner)")
-async def rekber_panel(interaction: discord.Interaction):
-    if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
-    embed = discord.Embed(title="MIPI STORE - REKBER / MIDDLEMAN 💗", description="**Transaksi Aman 100% - No Tipu-Tipu!**\n\nCara Rekber:\n> 1. Pencet tombol 🎫 Buat Ticket Middleman\n> 2. Isi Buyer, Seller, Jenis, Harga\n> 3. Buyer transfer ke QRIS MIPI\n> 4. Seller kirim barang\n> 5. Buyer konfirmasi terima, admin terusin duit ke Seller!\n\n**FEE REKBER:**\n> Rp 1K - 99K = Fee Rp 1.500\n> Rp 100K - 199K = Fee Rp 2.500\n> Rp 200K - 499K = Fee Rp 4.000\n> Rp 500K - 1JT = Fee Rp 7.000\n> Di atas 1JT = Fee Rp 10.000", color=0xFF69B4); embed.set_image(url=WELCOME_URL); await interaction.response.send_message(embed=embed, view=RekberPanelView())
-@bot.tree.command(name="history-rekber", description="Lihat history rekber (Admin)")
-async def history_rekber_cmd(interaction: discord.Interaction):
-    if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.response.send_message("Hanya Admin / Owner!", ephemeral=True); return
-    if not rekber_history: await interaction.response.send_message("Belum ada history rekber!", ephemeral=True); return
-    txt = "**📜 HISTORY REKBER:**\n\n"
-    for h in rekber_history[-10:]: txt += f"• REKBER-{h['id']} | {h['buyer']} -> {h['seller']} | {h['jenis']} | {format_rp(h['harga'])} | {h['status']}\n"
-    await interaction.response.send_message(txt, ephemeral=True)
+        if mn <= harga <= mx: return fee, label
+    return 10000, "Di atas Rp 1.000.000"
+@bot.tree.command(name="cek-fee-rekber", description="Cek fee rekber MIPI")
+async def cek_fee_rekber(interaction: discord.Interaction, harga: int):
+    fee, label = get_fee_rekber(harga)
+    await interaction.response.send_message(f"💰 **FEE REKBER MIPI**\nHarga Transaksi: {format_rp(harga)}\nKategori: {label}\nFee: {format_rp(fee)}\nTotal yang harus dibayar Buyer: {format_rp(harga + fee)}", ephemeral=True)
 
-# ===== TOKEN - PALING BAWAH SENDIRI =====
-bot.run(os.getenv("DISCORD_TOKEN"))
+# ===== RUN BOT =====
+# Ganti TOKEN di bawah ini dengan token bot kamu!
+# bot.run(os.getenv("DISCORD_TOKEN"))
+bot.run("TOKEN_KAMU_DISINI")
