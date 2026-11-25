@@ -1,4 +1,4 @@
-# ===== MIPI STORE - FULL KODE FINAL - PART 1 / 2 =====
+# ===== MIPI STORE - FULL KODE FINAL FIX - PART 1 / 2 =====
 import discord
 from discord.ext import commands, tasks
 import os, time, io, html, re, asyncio, json, random, string, aiohttp
@@ -486,7 +486,7 @@ class TicketTypeView(discord.ui.View):
         await interaction.response.send_modal(OrderModalBaru("BELI AKUN"))
 OrderView = TicketTypeView
 # ===== END PART 1 / 2 =====
-# ===== MIPI STORE - FULL KODE FINAL - PART 2 / 2 =====
+# ===== MIPI STORE - FULL KODE FINAL FIX - PART 2 / 2 =====
 @bot.event
 async def on_message(message):
     if message.author.bot: return
@@ -579,10 +579,15 @@ async def close_ticket_cmd(interaction: discord.Interaction):
     if not data: await interaction.response.send_message("Ini bukan channel ticket!", ephemeral=True); return
     await interaction.response.send_message("Ticket ditutup oleh " + interaction.user.mention + ". Membuat transcript..."); await do_auto_close(interaction.guild, interaction.channel, data, reason="closed by owner", admin_user=interaction.user)
 
-# ===== PRICELIST - UTAMA + 7 PER JENIS =====
+# ===== PRICELIST - FIX ANTI DID NOT RESPOND =====
 @bot.tree.command(name="pricelist", description="Lihat semua pricelist + gambarnya")
 async def pricelist_cmd(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embeds=build_all_pricelist_embeds())
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embeds=build_all_pricelist_embeds())
+    except Exception as e:
+        print(f"ERROR /pricelist: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="setup-pricelist", description="Kirim panel pricelist lengkap + gambar (Owner)")
 async def setup_pricelist(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -591,27 +596,62 @@ async def setup_pricelist(interaction: discord.Interaction):
     await interaction.followup.send(f"✅ Panel pricelist udah dikirim ke {interaction.channel.mention}!", ephemeral=True)
 @bot.tree.command(name="pricelist-visend", description="Lihat pricelist Robux Via Username / Via Send")
 async def pricelist_visend(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("via_username"))
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("via_username"))
+    except Exception as e:
+        print(f"ERROR /pricelist-visend: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="pricelist-vilog", description="Lihat pricelist Robux Vlog / Via Login")
 async def pricelist_vilog(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("via_login"))
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("via_login"))
+    except Exception as e:
+        print(f"ERROR /pricelist-vilog: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="pricelist-via-komunitas", description="Lihat pricelist Robux Via Komunitas")
 async def pricelist_komunitas(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("via_komunitas"))
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("via_komunitas"))
+    except Exception as e:
+        print(f"ERROR /pricelist-via-komunitas: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="pricelist-plus", description="Lihat pricelist Roblox Plus")
 async def pricelist_plus(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("plus"))
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("plus"))
+    except Exception as e:
+        print(f"ERROR /pricelist-plus: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="pricelist-limited", description="Lihat pricelist Item Limited")
 async def pricelist_limited(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("limited"))
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_pricelist_embed("limited"))
+    except Exception as e:
+        print(f"ERROR /pricelist-limited: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="pricelist-pay", description="Lihat cara pembayaran / QRIS Mipi Store")
 async def pricelist_pay(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False)
-    e = discord.Embed(title="💳 PEMBAYARAN - MIPI STORE", description="**Cara Bayar:**\n\n1. Order dulu lewat tombol di #ticket\n2. Scan QRIS di bawah ini\n3. Kirim bukti di ticket kamu\n4. Tunggu admin konfirmasi\n\n**Yang diterima:**\n• QRIS (DANA / GOPAY / OVO / ShopeePay / dll)\n• DANA\n• GOPAY\n\n⚠️ **JANGAN transfer ke selain QRIS ini!**", color=0xff69b4)
-    e.set_image(url=QRIS_URL); e.set_footer(text="Mipi Store - Rafi Store | Pembayaran hanya QRIS"); await interaction.followup.send(embed=e)
+    try:
+        await interaction.response.defer(ephemeral=False)
+        e = discord.Embed(title="💳 PEMBAYARAN - MIPI STORE", description="**Cara Bayar:**\n\n1. Order dulu lewat tombol di #ticket\n2. Scan QRIS di bawah ini\n3. Kirim bukti di ticket kamu\n4. Tunggu admin konfirmasi\n\n**Yang diterima:**\n• QRIS (DANA / GOPAY / OVO / ShopeePay / dll)\n• DANA\n• GOPAY\n\n⚠️ **JANGAN transfer ke selain QRIS ini!**", color=0xff69b4)
+        e.set_image(url=QRIS_URL); e.set_footer(text="Mipi Store - Rafi Store | Pembayaran hanya QRIS"); await interaction.followup.send(embed=e)
+    except Exception as e:
+        print(f"ERROR /pricelist-pay: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 @bot.tree.command(name="pricelist-top-sultan", description="Lihat Top Sultan Mipi Store")
 async def pricelist_top_sultan(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_top_sultan_embed_semua())
+    try:
+        await interaction.response.defer(ephemeral=False); await interaction.followup.send(embed=build_top_sultan_embed_semua())
+    except Exception as e:
+        print(f"ERROR /pricelist-top-sultan: {e}")
+        try: await interaction.followup.send(f"❌ Error: {e}")
+        except: pass
 
 # ===== EDIT PRICELIST =====
 class EditHargaModal(discord.ui.Modal, title="Ubah Harga"):
@@ -674,16 +714,24 @@ async def lihat_harga(interaction: discord.Interaction):
 # ===== LEADERBOARD - BULANAN VS SEMUA =====
 @bot.tree.command(name="leaderboard", description="Lihat Top Sultan BULAN INI aja - ke-reset tiap tanggal 1")
 async def leaderboard(interaction: discord.Interaction):
-    await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_bulanan())
+    try:
+        await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_bulanan())
+    except Exception as e: print(f"ERROR /leaderboard: {e}")
 @bot.tree.command(name="leaderboard-bulanan", description="Lihat Top Sultan BULAN INI aja")
 async def leaderboard_bulanan(interaction: discord.Interaction):
-    await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_bulanan())
+    try:
+        await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_bulanan())
+    except Exception as e: print(f"ERROR /leaderboard-bulanan: {e}")
 @bot.tree.command(name="leaderboard-semua", description="Lihat Top Sultan SEMUA / ALL TIME - ga pernah ke-reset")
 async def leaderboard_semua(interaction: discord.Interaction):
-    await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_semua())
+    try:
+        await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_semua())
+    except Exception as e: print(f"ERROR /leaderboard-semua: {e}")
 @bot.tree.command(name="top-sultan", description="Lihat Top Sultan SEMUA / ALL TIME")
 async def top_sultan_cmd(interaction: discord.Interaction):
-    await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_semua())
+    try:
+        await interaction.response.defer(); await interaction.followup.send(embed=build_top_sultan_embed_semua())
+    except Exception as e: print(f"ERROR /top-sultan: {e}")
 @bot.tree.command(name="setup-top-sultan", description="Bikin channel top-sultan auto-update (Owner)")
 async def setup_top_sultan(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -846,4 +894,4 @@ async def checkavatar(interaction: discord.Interaction, username: str):
     except Exception as e: print(f"ERROR checkavatar: {e}"); await interaction.followup.send(f"❌ Gagal cek avatar {username}: {e}")
 
 bot.run(os.getenv("TOKEN"))
-# ===== END PART 2 / 2 - FULL FINAL =====
+# ===== END PART 2 / 2 - FULL FINAL FIX =====
