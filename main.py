@@ -1,4 +1,4 @@
-# ===== MIPI STORE - FULL KODE FINAL FIX - PART 1 / 2 =====
+# ===== MIPI STORE - FULL KODE FINAL NO CUSTOM EMOJI - PART 1 / 2 =====
 import discord
 from discord.ext import commands, tasks
 import os, time, io, html, re, asyncio, json, random, string, aiohttp
@@ -101,7 +101,7 @@ def build_top_sultan_embed_bulanan():
     data = load_leaderboard(); bulan_ini = datetime.now().strftime("%Y-%m"); users = data.get(bulan_ini, {})
     s = sorted(users.items(), key=lambda x: x[1].get("total_rp", 0), reverse=True)[:10]
     tp = len(users); tpes = sum(v.get("transaksi", 0) for v in users.values()); tom = sum(v.get("total_rp", 0) for v in users.values()); nama_bulan = datetime.now().strftime("%B %Y")
-    desc = f"MIPI STORE • LEADERBOARD BULANAN - {nama_bulan}\nDaftar peringkat bulan ini aja! Bulan depan ke-reset lagi dari 0!\n\n"
+    desc = f"MIPI STORE - LEADERBOARD BULANAN - {nama_bulan}\nDaftar peringkat bulan ini aja! Bulan depan ke-reset lagi dari 0!\n\n"
     if not s: desc += "> Belum ada Sultan bulan ini! Order dulu, jadi #1 bulan ini!\n\n"
     else:
         medals = ["🥇","🥈","🥉"]
@@ -117,7 +117,7 @@ def build_top_sultan_embed_semua():
             if uid not in gabung: gabung[uid] = {"username": info.get("username","User"), "total_rp": 0, "total": 0, "transaksi": 0}
             gabung[uid]["total_rp"] += info.get("total_rp", 0); gabung[uid]["total"] += info.get("total", 0); gabung[uid]["transaksi"] += info.get("transaksi", 0); gabung[uid]["username"] = info.get("username", gabung[uid]["username"])
     s = sorted(gabung.items(), key=lambda x: x[1]["total_rp"], reverse=True)[:10]; tp = len(gabung); tpes = sum(v["transaksi"] for v in gabung.values()); tom = sum(v["total_rp"] for v in gabung.values())
-    desc = "MIPI STORE • LEADERBOARD SEMUA / ALL TIME\nDaftar peringkat dari pertama toko buka sampe sekarang! GA PERNAH KE-RESET!\n\n"
+    desc = "MIPI STORE - LEADERBOARD SEMUA / ALL TIME\nDaftar peringkat dari pertama toko buka sampe sekarang! GA PERNAH KE-RESET!\n\n"
     if not s: desc += "> Belum ada Sultan! Order dulu, jadi #1 sepanjang masa!\n\n"
     else:
         medals = ["🥇","🥈","🥉"]
@@ -394,10 +394,9 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self, interaction: discord.Interaction, button: discord.ui.Button):
         tr, tro, tt = get_total_belanja(interaction.user.id); embed = discord.Embed(color=0xff1493); embed.description = "INFORMASI SALDO / TOTAL TRANSAKSI\n\nHalo " + interaction.user.mention + ",\n\nTotal Belanja: " + format_rp(tr) + "\nTotal Robux: " + str(tro) + " R$\nTotal Transaksi: " + str(tt) + "x\n\nMIPI STORE - CHECK SALDO"; embed.set_footer(text="Mipi Store - Rafi Store"); await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ===== TICKET BARU - 10 TOMBOL =====
-E_VIA = "<:mipi_via:1575065825273057373>"; E_VLOG = "<:mipi_vlog:1575065825273057373>"; E_BELI_LIMITED = "<:mipi_limited:1575065707253858336>"; E_JUAL_LIMITED = "<:mipi_jual:1575065707253858336>"; E_OFFSALE = "<:mipi_offsale:1575064612343250996>"; E_PLUS = "<:mipi_plus:1575068191418355813>"; E_REKBER = "<:mipi_rekber:1575102785433772063>"; E_NANYA = "<:mipi_nanya:1575067658666377249>"; E_KOMUNITAS = "<:mipi_komunitas:1575065825273057373>"; E_AKUN = "<:mipi_akun:1575065460339122187>"
+# ===== TICKET BARU - 10 TOMBOL - TANPA EMOJI CUSTOM =====
 def build_ticket_panel_baru_embed():
-    e = discord.Embed(title="🎫 Mipi Store - Ticket Order", description=f"{E_VIA} **Robux Via Username** - Beli Robux Via Username\n{E_VLOG} **Robux Vlog** - Beli Robux melalui via login\n{E_BELI_LIMITED} **Beli Limited Item** - Beli Item Via Trade\n{E_JUAL_LIMITED} **Jual Limited Item** - Dapatkan Uang (Cashout)\n{E_OFFSALE} **Beli Item Offsale** - Via Redeem Code\n{E_PLUS} **Beli Roblox Plus** - Roblox Plus Monthly\n{E_REKBER} **Rekber/MM** - Rekber, Akun, Jasa, dll\n{E_NANYA} **Other/Nanya** - Pertanyaan & bantuan lainnya\n{E_KOMUNITAS} **Via Komunitas** - Beli Robux Via Komunitas / Group\n{E_AKUN} **Beli Akun** - Beli Akun Roblox Sultan / Stok\n\nMipi Store Powered by MIPI 💗", color=0x2B2D31)
+    e = discord.Embed(title="🎫 Mipi Store - Ticket Order", description="💰 **Robux Via Username** - Beli Robux Via Username\n📹 **Robux Vlog** - Beli Robux melalui via login\n👑 **Beli Limited Item** - Beli Item Via Trade\n💸 **Jual Limited Item** - Dapatkan Uang (Cashout)\n🎁 **Beli Item Offsale** - Via Redeem Code\n⭐ **Beli Roblox Plus** - Roblox Plus Monthly\n🤝 **Rekber/MM** - Rekber, Akun, Jasa, dll\n❓ **Other/Nanya** - Pertanyaan & bantuan lainnya\n👥 **Via Komunitas** - Beli Robux Via Komunitas / Group\n👤 **Beli Akun** - Beli Akun Roblox Sultan / Stok\n\nMipi Store Powered by MIPI 💗", color=0x2B2D31)
     e.set_image(url=WELCOME_URL); e.set_footer(text="Mipi Store - Pilih tombol di bawah sesuai kebutuhan kamu!"); return e
 class OrderModalBaru(discord.ui.Modal):
     def __init__(self, jenis: str):
@@ -444,49 +443,49 @@ class TicketTypeView(discord.ui.View):
         if STORE_STATUS == "closed":
             embed = discord.Embed(color=0xff0000); embed.description = "MIPI STORE UDAH TUTUP! 💤\n\nBalik besok yaa!"; await interaction.response.send_message(embed=embed, ephemeral=True); return False
         return True
-    @discord.ui.button(label="Robux Via Username", style=discord.ButtonStyle.primary, emoji="<:mipi_via:1575065825273057373>", custom_id="t_via_send", row=0)
+    @discord.ui.button(label="Robux Via Username", style=discord.ButtonStyle.primary, emoji="💰", custom_id="t_via_send", row=0)
     async def t1(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("VIA SEND"))
-    @discord.ui.button(label="Robux Vlog", style=discord.ButtonStyle.primary, emoji="<:mipi_vlog:1575065825273057373>", custom_id="t_via_login", row=0)
+    @discord.ui.button(label="Robux Vlog", style=discord.ButtonStyle.primary, emoji="📹", custom_id="t_via_login", row=0)
     async def t2(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("VIA LOGIN"))
-    @discord.ui.button(label="Beli Limited Item", style=discord.ButtonStyle.primary, emoji="<:mipi_limited:1575065707253858336>", custom_id="t_beli_limited", row=1)
+    @discord.ui.button(label="Beli Limited Item", style=discord.ButtonStyle.primary, emoji="👑", custom_id="t_beli_limited", row=1)
     async def t3(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI LIMITED"))
-    @discord.ui.button(label="Jual Limited Item", style=discord.ButtonStyle.primary, emoji="<:mipi_jual:1575065707253858336>", custom_id="t_jual_limited", row=2)
+    @discord.ui.button(label="Jual Limited Item", style=discord.ButtonStyle.primary, emoji="💸", custom_id="t_jual_limited", row=2)
     async def t4(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("JUAL LIMITED"))
-    @discord.ui.button(label="Beli Roblox Plus", style=discord.ButtonStyle.primary, emoji="<:mipi_plus:1575068191418355813>", custom_id="t_pluss", row=3)
+    @discord.ui.button(label="Beli Roblox Plus", style=discord.ButtonStyle.primary, emoji="⭐", custom_id="t_pluss", row=3)
     async def t5(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("ROBLOX PLUSS"))
-    @discord.ui.button(label="Beli Item Offsale", style=discord.ButtonStyle.primary, emoji="<:mipi_offsale:1575064612343250996>", custom_id="t_offsale", row=3)
+    @discord.ui.button(label="Beli Item Offsale", style=discord.ButtonStyle.primary, emoji="🎁", custom_id="t_offsale", row=3)
     async def t6(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI ITEM OFFSALE"))
-    @discord.ui.button(label="Rekber/MM", style=discord.ButtonStyle.primary, emoji="<:mipi_rekber:1575102785433772063>", custom_id="t_rekber", row=4)
+    @discord.ui.button(label="Rekber/MM", style=discord.ButtonStyle.primary, emoji="🤝", custom_id="t_rekber", row=4)
     async def t7(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("REKBER"))
-    @discord.ui.button(label="Other/Nanya", style=discord.ButtonStyle.primary, emoji="<:mipi_nanya:1575067658666377249>", custom_id="t_other", row=4)
+    @discord.ui.button(label="Other/Nanya", style=discord.ButtonStyle.primary, emoji="❓", custom_id="t_other", row=4)
     async def t8(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("OTHER"))
-    @discord.ui.button(label="Via Komunitas", style=discord.ButtonStyle.primary, emoji="<:mipi_komunitas:1575065825273057373>", custom_id="t_komunitas", row=5)
+    @discord.ui.button(label="Via Komunitas", style=discord.ButtonStyle.primary, emoji="👥", custom_id="t_komunitas", row=5)
     async def t9(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("VIA KOMUNITAS"))
-    @discord.ui.button(label="Beli Akun", style=discord.ButtonStyle.primary, emoji="<:mipi_akun:1575065460339122187>", custom_id="t_beli_akun", row=5)
+    @discord.ui.button(label="Beli Akun", style=discord.ButtonStyle.primary, emoji="👤", custom_id="t_beli_akun", row=5)
     async def t10(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI AKUN"))
 OrderView = TicketTypeView
 # ===== END PART 1 / 2 =====
-# ===== MIPI STORE - FULL KODE FINAL FIX - PART 2 / 2 =====
+# ===== MIPI STORE - FULL KODE FINAL NO CUSTOM EMOJI - PART 2 / 2 =====
 @bot.event
 async def on_message(message):
     if message.author.bot: return
@@ -537,25 +536,22 @@ async def update_all_panels(guild):
 
 @bot.tree.command(name="ticket", description="Tampilkan panel order MIPI STORE - 10 Tombol Baru")
 async def ticket(interaction: discord.Interaction):
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     try:
         if STORE_STATUS != "open":
             st = "BREAK - Mimin break 15-30 menit!" if STORE_STATUS == "break" else "CLOSED - Toko tutup, balik besok yaa!"
             await interaction.followup.send(st + "\n\nTicket lagi dikunci sementara! Tunggu OPEN lagi yaa! 💗", ephemeral=True); return
-        panels = load_panel()
-        if "ticket" in panels:
-            try:
-                ch = interaction.guild.get_channel(int(panels["ticket"]["channel_id"])); msg = await ch.fetch_message(int(panels["ticket"]["message_id"]))
-                await msg.edit(embed=build_ticket_panel_baru_embed(), view=TicketTypeView()); await interaction.followup.send(f"✅ Panel udah di-update jadi 10 tombol baru! Cek {ch.mention}", ephemeral=True); return
-            except: pass
-        msg = await interaction.followup.send(embed=build_ticket_panel_baru_embed(), view=TicketTypeView()); panels["ticket"] = {"channel_id": str(msg.channel.id), "message_id": str(msg.id)}; save_panel(panels)
+        msg = await interaction.channel.send(embed=build_ticket_panel_baru_embed(), view=TicketTypeView())
+        panels = load_panel(); panels["ticket"] = {"channel_id": str(msg.channel.id), "message_id": str(msg.id)}; save_panel(panels)
+        await interaction.followup.send(f"✅ Panel 10 tombol baru udah dikirim!", ephemeral=True)
     except Exception as e: print(f"ERROR /ticket: {e}"); await interaction.followup.send(f"❌ Error /ticket: {e}", ephemeral=True)
 @bot.tree.command(name="setup-ticket", description="Kirim panel ticket order (Owner only)")
 async def setup_ticket(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
     try:
+        await interaction.response.defer(ephemeral=True)
         if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-        await interaction.followup.send(embed=build_ticket_panel_baru_embed(), view=TicketTypeView())
+        await interaction.channel.send(embed=build_ticket_panel_baru_embed(), view=TicketTypeView())
+        await interaction.followup.send("✅ Panel 10 tombol baru udah dikirim!", ephemeral=True)
     except Exception as e: print(f"ERROR /setup-ticket: {e}"); await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 @bot.tree.command(name="open", description="Buka toko")
 async def open_cmd(interaction: discord.Interaction):
@@ -894,4 +890,4 @@ async def checkavatar(interaction: discord.Interaction, username: str):
     except Exception as e: print(f"ERROR checkavatar: {e}"); await interaction.followup.send(f"❌ Gagal cek avatar {username}: {e}")
 
 bot.run(os.getenv("TOKEN"))
-# ===== END PART 2 / 2 - FULL FINAL FIX =====
+# ===== END PART 2 / 2 - FULL FINAL NO CUSTOM EMOJI =====
