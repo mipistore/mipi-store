@@ -384,11 +384,13 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self, interaction: discord.Interaction, button: discord.ui.Button):
         tr, tro, tt = get_total_belanja(interaction.user.id); embed = discord.Embed(color=0xff1493); embed.description = "INFORMASI SALDO / TOTAL TRANSAKSI\n\nHalo " + interaction.user.mention + ",\n\nTotal Belanja: " + format_rp(tr) + "\nTotal Robux: " + str(tro) + " R$\nTotal Transaksi: " + str(tt) + "x\n\nMIPI STORE - CHECK SALDO"; embed.set_footer(text="Mipi Store - Rafi Store"); await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# === EMOJI FINAL - ATAS (EMBED) + BAWAH (TOMBOL) ===
-E_VIA = "<a:robux:1563387482182254725>"; E_VLOG = "<:emoji_10:1431192496876027975>"; E_BELI_LIMITED = "<a:diamond:1516624681585869041>"; E_JUAL_LIMITED = "<a:moneybag:1512329138172596265>"; E_OFFSALE = "<a:emoji_20:1550165111333986354>"; E_PLUS = "<:b_RobloxPlus:1499160341983006730>"; E_REKBER = "<a:emoji_39:1555770513907916822>"; E_NANYA = "<a:b_bluequestion:1345684551502008340>"; E_KOMUNITAS = "<a:rbx:1530537752729223308>"; E_AKUN = "<a:star_purple:1303353812374913035>"
+# === EMOJI ATAS (EMBED) - BARU - CUMA INI YANG DIGANTI ===
+E_VIA = "<a:robux:1565752226268315679>"; E_VLOG = "<a:robux:1565752226268315679>"; E_BELI_LIMITED = "<a:diamond:1516624681585869041>"; E_JUAL_LIMITED = "<a:moneybag:1572830212213969027>"; E_OFFSALE = "<a:emoji_20:1550165111333986354>"; E_PLUS = "<:b_RobloxPlus:1499160341983006730>"; E_REKBER = "<a:emoji_39:1555770513907916822>"; E_NANYA = "<a:A_CatSlapCounter:151588269454348288>"; E_KOMUNITAS = "<a:robux:1565752226268315679>"; E_AKUN = "<a:emojigg_1:1510557825712259183>"
+
 def build_ticket_panel_baru_embed():
     e = discord.Embed(title="🎫 Mipi Store - Ticket Order", description=f"{E_VIA} **Robux Via Username** - Beli Robux Via Username\n{E_VLOG} **Robux Vlog** - Beli Robux melalui via login\n{E_BELI_LIMITED} **Beli Limited Item** - Beli Item Via Trade\n{E_JUAL_LIMITED} **Jual Limited Item** - Dapatkan Uang (Cashout)\n{E_OFFSALE} **Beli Item Offsale** - Via Redeem Code\n{E_PLUS} **Beli Roblox Plus** - Roblox Plus Monthly\n{E_REKBER} **Rekber/MM** - Rekber, Akun, Jasa, dll\n{E_NANYA} **Other/Nanya** - Pertanyaan & bantuan lainnya\n{E_KOMUNITAS} **Via Komunitas** - Beli Robux Via Komunitas / Group\n{E_AKUN} **Beli Akun** - Beli Akun Roblox Sultan / Stok\n\nMipi Store Powered by MIPI 💗", color=0x2B2D31)
     e.set_image(url=WELCOME_URL); e.set_footer(text="Mipi Store - Pilih tombol di bawah sesuai kebutuhan kamu!"); return e
+
 class OrderModalBaru(discord.ui.Modal):
     def __init__(self, jenis: str):
         super().__init__(title=f"Order - {jenis}"); self.jenis = jenis
@@ -426,6 +428,8 @@ class OrderModalBaru(discord.ui.Modal):
         await interaction.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\nPencet tombol dibawah 👇\n{channel.mention}", view=go_view, ephemeral=True)
         try: await interaction.user.send(f"Ticket MIPI STORE kamu sudah dibuat!\nJenis: {self.jenis}\nData: {self.f1.value} | {self.f2.value}\nLink: https://discord.com/channels/{guild.id}/{channel.id}\n\nKirim bukti QRIS kamu disana ya 💗")
         except: pass
+
+# === TOMBOL - RAPET 2-2-2-2-2 - EMOJI TOMBOL TETEP LAMA, GAK DIGANTI ===
 class TicketTypeView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     async def cek_store(self, interaction):
@@ -475,6 +479,7 @@ class TicketTypeView(discord.ui.View):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI AKUN"))
 OrderView = TicketTypeView
+
 @bot.event
 async def on_message(message):
     if message.author.bot: return
@@ -741,9 +746,10 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
     await interaction.response.defer(ephemeral=True)
     if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.followup.send("Hanya Admin / Owner!", ephemeral=True); return
     if robux <= 0: await interaction.followup.send("Jumlah Robux harus lebih dari 0!", ephemeral=True); return
-    harga = get_harga(robux); add_to_leaderboard(user.id, user.name, f"{robux} Robux")
+    harga = get_harga(robux)
+    add_to_leaderboard(user.id, user.name, f"{robux} Robux")
+    await interaction.followup.send(f"✅ Saldo ditambah!\nBuyer: {user.mention}\n+{robux} R$ ({format_rp(harga)})")
     try: await update_top_sultan(interaction.guild)
     except: pass
-    await interaction.followup.send(f"✅ Saldo ditambah!\nBuyer: {user.mention}\n+{robux} R$ ({format_rp(harga)}) udah masuk leaderboard + Top Sultan!")
 
-bot.run(os.getenv("DISCORD_TOKEN", "TOKEN_BOT_KAMU"))
+bot.run(os.getenv("TOKEN"))
