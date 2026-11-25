@@ -22,14 +22,14 @@ TOP_SULTAN_IMAGE = "https://raw.githubusercontent.com/mipistore/mipi-store/main/
 ticket_data = {}; ticket_counter = 0; user_ratings = {}; user_last_ticket = {}
 STORE_STATUS = "open"; STORE_STATUS_MSG = ""; OPEN_CLOSE_CHANNEL_ID = 1569135504262299689
 
-# ===== PRICELIST PER KATEGORI - BEDA-BEDA, GAK SALING NGIKUT =====
+# ===== PRICELIST PER KATEGORI - UDAH DIATUR BEDA-BEDA =====
 PRICELIST_FILE = "pricelist.json"
 DEFAULT_PRICELIST = {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000}
-# Harga awal beda-beda biar kerasa bedanya, nanti bisa kamu edit sendiri:
+# HARGA UDAH DIATUR: Login paling mahal, Username tengah, Komunitas paling murah
 DEFAULT_PRICELIST_PER_KATEGORI = {
     "via_username": {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000},
-    "via_login": {100: 17000, 200: 34000, 300: 50000, 400: 66000, 500: 80000, 1000: 160000, 2000: 320000, 3000: 480000, 4000: 640000, 5000: 800000},
-    "via_komunitas": {100: 15000, 200: 30000, 300: 45000, 400: 60000, 500: 70000, 1000: 140000, 2000: 280000, 3000: 420000, 4000: 560000, 5000: 700000},
+    "via_login": {100: 18000, 200: 36000, 300: 53000, 400: 70000, 500: 85000, 1000: 170000, 2000: 340000, 3000: 510000, 4000: 680000, 5000: 850000},
+    "via_komunitas": {100: 14000, 200: 28000, 300: 42000, 400: 56000, 500: 68000, 1000: 135000, 2000: 270000, 3000: 405000, 4000: 540000, 5000: 680000},
     "plus": {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000},
     "limited": {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000},
 }
@@ -39,7 +39,6 @@ def _load_all_pricelist_raw():
     except: return {}
 def load_pricelist(kategori="via_username"):
     raw = _load_all_pricelist_raw()
-    # Migrasi file lama (format {100:16000}) -> jadi via_username, yang lain pake default beda-beda
     if raw and raw.keys() and list(raw.keys())[0].isdigit():
         if kategori == "via_username":
             try: return {int(k): int(v) for k,v in raw.items()}
@@ -51,11 +50,9 @@ def load_pricelist(kategori="via_username"):
     return DEFAULT_PRICELIST_PER_KATEGORI.get(kategori, DEFAULT_PRICELIST).copy()
 def save_pricelist(data, kategori="via_username"):
     raw = _load_all_pricelist_raw()
-    # Kalau file masih format lama, convert dulu
     if raw and raw.keys() and list(raw.keys())[0].isdigit():
         old = {int(k): int(v) for k,v in raw.items()}
         raw = {"via_username": {str(k): v for k,v in old.items()}}
-        # Kategori lain isi default beda-beda biar gak kosong
         for kat in ["via_login", "via_komunitas", "plus", "limited"]:
             if kat not in raw: raw[kat] = {str(k): v for k,v in DEFAULT_PRICELIST_PER_KATEGORI[kat].items()}
     if not raw:
@@ -664,7 +661,7 @@ async def pricelist_top_sultan(interaction: discord.Interaction):
         try: await interaction.followup.send(f"❌ Error: {e}")
         except: pass
 
-# ===== EDIT HARGA PER KATEGORI - SEKARANG ADA PILIHAN KATEGORINYA =====
+# ===== EDIT HARGA PER KATEGORI - UDAH BEDA-BEDA =====
 class EditHargaModal(discord.ui.Modal, title="Ubah Harga"):
     def __init__(self, robux_lama, kategori):
         super().__init__(); self.robux_lama = robux_lama; self.kategori = kategori; self.harga_input = discord.ui.TextInput(label=f"Harga Baru [{kategori}] {robux_lama} Robux", placeholder="Contoh: 80000", required=True); self.add_item(self.harga_input)
