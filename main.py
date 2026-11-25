@@ -384,7 +384,7 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self, interaction: discord.Interaction, button: discord.ui.Button):
         tr, tro, tt = get_total_belanja(interaction.user.id); embed = discord.Embed(color=0xff1493); embed.description = "INFORMASI SALDO / TOTAL TRANSAKSI\n\nHalo " + interaction.user.mention + ",\n\nTotal Belanja: " + format_rp(tr) + "\nTotal Robux: " + str(tro) + " R$\nTotal Transaksi: " + str(tt) + "x\n\nMIPI STORE - CHECK SALDO"; embed.set_footer(text="Mipi Store - Rafi Store"); await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# === EMOJI BARU - UPDATE 26 Nov 2026 ===
+# === EMOJI ATAS (EMBED) + BAWAH (TOMBOL) - ALA BLUEBLOX ===
 E_VIA = "<:mipi_via:1575065825273057373>"; E_VLOG = "<:mipi_vlog:1575065825273057373>"; E_BELI_LIMITED = "<a:diamond:1516624681585869041>"; E_JUAL_LIMITED = "<a:moneybag:1512329138172596265>"; E_OFFSALE = "<a:emoji_20:1550165111333986354>"; E_PLUS = "<:b_RobloxPlus:1499160341983006730>"; E_REKBER = "<a:emoji_39:1555770513907916822>"; E_NANYA = "<a:b_bluequestion:1345684551502008340>"; E_KOMUNITAS = "<:mipi_komunitas:1575065825273057373>"; E_AKUN = "<a:star_purple:1303353812374913035>"
 def build_ticket_panel_baru_embed():
     e = discord.Embed(title="🎫 Mipi Store - Ticket Order", description=f"{E_VIA} **Robux Via Username** - Beli Robux Via Username\n{E_VLOG} **Robux Vlog** - Beli Robux melalui via login\n{E_BELI_LIMITED} **Beli Limited Item** - Beli Item Via Trade\n{E_JUAL_LIMITED} **Jual Limited Item** - Dapatkan Uang (Cashout)\n{E_OFFSALE} **Beli Item Offsale** - Via Redeem Code\n{E_PLUS} **Beli Roblox Plus** - Roblox Plus Monthly\n{E_REKBER} **Rekber/MM** - Rekber, Akun, Jasa, dll\n{E_NANYA} **Other/Nanya** - Pertanyaan & bantuan lainnya\n{E_KOMUNITAS} **Via Komunitas** - Beli Robux Via Komunitas / Group\n{E_AKUN} **Beli Akun** - Beli Akun Roblox Sultan / Stok\n\nMipi Store Powered by MIPI 💗", color=0x2B2D31)
@@ -746,6 +746,4 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
     except: pass
     await interaction.followup.send(f"✅ Saldo ditambah!\nBuyer: {user.mention}\n+{robux} R$ ({format_rp(harga)}) udah masuk leaderboard + Top Sultan!")
 
-# === JALANKAN BOT - pake TOKEN dari env / isi manual ===
-# Di hosting kamu, TOKEN diambil dari environment variable
 bot.run(os.getenv("DISCORD_TOKEN", "TOKEN_BOT_KAMU"))
