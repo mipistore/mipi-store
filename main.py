@@ -384,8 +384,8 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self, interaction: discord.Interaction, button: discord.ui.Button):
         tr, tro, tt = get_total_belanja(interaction.user.id); embed = discord.Embed(color=0xff1493); embed.description = "INFORMASI SALDO / TOTAL TRANSAKSI\n\nHalo " + interaction.user.mention + ",\n\nTotal Belanja: " + format_rp(tr) + "\nTotal Robux: " + str(tro) + " R$\nTotal Transaksi: " + str(tt) + "x\n\nMIPI STORE - CHECK SALDO"; embed.set_footer(text="Mipi Store - Rafi Store"); await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# === EMOJI ATAS (EMBED) - BARU - CUMA INI YANG DIGANTI ===
-E_VIA = "<a:robux:1565752226268315679>"; E_VLOG = "<a:robux:1565752226268315679>"; E_BELI_LIMITED = "<a:diamond:1516624681585869041>"; E_JUAL_LIMITED = "<a:moneybag:1572830212213969027>"; E_OFFSALE = "<a:emoji_20:1550165111333986354>"; E_PLUS = "<:b_RobloxPlus:1499160341983006730>"; E_REKBER = "<a:emoji_39:1555770513907916822>"; E_NANYA = "<a:A_CatSlapCounter:151588269454348288>"; E_KOMUNITAS = "<a:robux:1565752226268315679>"; E_AKUN = "<a:emojigg_1:1510557825712259183>"
+# === EMOJI ATAS (EMBED) - UNICODE - DIJAMIN MUNCUL, GAK JADI :robux: LAGI ===
+E_VIA = "💎"; E_VLOG = "💎"; E_BELI_LIMITED = "💠"; E_JUAL_LIMITED = "💰"; E_OFFSALE = "🎁"; E_PLUS = "⭐"; E_REKBER = "🛡️"; E_NANYA = "🐱"; E_KOMUNITAS = "👥"; E_AKUN = "💃"
 
 def build_ticket_panel_baru_embed():
     e = discord.Embed(title="🎫 Mipi Store - Ticket Order", description=f"{E_VIA} **Robux Via Username** - Beli Robux Via Username\n{E_VLOG} **Robux Vlog** - Beli Robux melalui via login\n{E_BELI_LIMITED} **Beli Limited Item** - Beli Item Via Trade\n{E_JUAL_LIMITED} **Jual Limited Item** - Dapatkan Uang (Cashout)\n{E_OFFSALE} **Beli Item Offsale** - Via Redeem Code\n{E_PLUS} **Beli Roblox Plus** - Roblox Plus Monthly\n{E_REKBER} **Rekber/MM** - Rekber, Akun, Jasa, dll\n{E_NANYA} **Other/Nanya** - Pertanyaan & bantuan lainnya\n{E_KOMUNITAS} **Via Komunitas** - Beli Robux Via Komunitas / Group\n{E_AKUN} **Beli Akun** - Beli Akun Roblox Sultan / Stok\n\nMipi Store Powered by MIPI 💗", color=0x2B2D31)
@@ -429,7 +429,7 @@ class OrderModalBaru(discord.ui.Modal):
         try: await interaction.user.send(f"Ticket MIPI STORE kamu sudah dibuat!\nJenis: {self.jenis}\nData: {self.f1.value} | {self.f2.value}\nLink: https://discord.com/channels/{guild.id}/{channel.id}\n\nKirim bukti QRIS kamu disana ya 💗")
         except: pass
 
-# === TOMBOL - RAPET 2-2-2-2-2 - EMOJI TOMBOL TETEP LAMA, GAK DIGANTI ===
+# === TOMBOL - RAPET 2-2-2-2-2 - EMOJI TOMBOL TETEP LAMA ===
 class TicketTypeView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     async def cek_store(self, interaction):
