@@ -22,19 +22,52 @@ TOP_SULTAN_IMAGE = "https://raw.githubusercontent.com/mipistore/mipi-store/main/
 ticket_data = {}; ticket_counter = 0; user_ratings = {}; user_last_ticket = {}
 STORE_STATUS = "open"; STORE_STATUS_MSG = ""; OPEN_CLOSE_CHANNEL_ID = 1569135504262299689
 
+# ===== PRICELIST PER KATEGORI - BEDA-BEDA, GAK SALING NGIKUT =====
 PRICELIST_FILE = "pricelist.json"
 DEFAULT_PRICELIST = {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000}
-def load_pricelist():
+# Harga awal beda-beda biar kerasa bedanya, nanti bisa kamu edit sendiri:
+DEFAULT_PRICELIST_PER_KATEGORI = {
+    "via_username": {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000},
+    "via_login": {100: 17000, 200: 34000, 300: 50000, 400: 66000, 500: 80000, 1000: 160000, 2000: 320000, 3000: 480000, 4000: 640000, 5000: 800000},
+    "via_komunitas": {100: 15000, 200: 30000, 300: 45000, 400: 60000, 500: 70000, 1000: 140000, 2000: 280000, 3000: 420000, 4000: 560000, 5000: 700000},
+    "plus": {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000},
+    "limited": {100: 16000, 200: 32000, 300: 48000, 400: 64000, 500: 75000, 1000: 150000, 2000: 300000, 3000: 450000, 4000: 600000, 5000: 750000},
+}
+def _load_all_pricelist_raw():
     try:
-        with open(PRICELIST_FILE, "r") as f: return {int(k): int(v) for k, v in json.load(f).items()}
-    except: return DEFAULT_PRICELIST.copy()
-def save_pricelist(data):
-    with open(PRICELIST_FILE, "w") as f: json.dump({str(k): v for k, v in data.items()}, f, indent=2)
-def get_harga(robux):
-    data = load_pricelist(); return data.get(robux, robux * 150)
+        with open(PRICELIST_FILE, "r") as f: return json.load(f)
+    except: return {}
+def load_pricelist(kategori="via_username"):
+    raw = _load_all_pricelist_raw()
+    # Migrasi file lama (format {100:16000}) -> jadi via_username, yang lain pake default beda-beda
+    if raw and raw.keys() and list(raw.keys())[0].isdigit():
+        if kategori == "via_username":
+            try: return {int(k): int(v) for k,v in raw.items()}
+            except: pass
+        return DEFAULT_PRICELIST_PER_KATEGORI.get(kategori, DEFAULT_PRICELIST).copy()
+    if kategori in raw:
+        try: return {int(k): int(v) for k,v in raw[kategori].items()}
+        except: pass
+    return DEFAULT_PRICELIST_PER_KATEGORI.get(kategori, DEFAULT_PRICELIST).copy()
+def save_pricelist(data, kategori="via_username"):
+    raw = _load_all_pricelist_raw()
+    # Kalau file masih format lama, convert dulu
+    if raw and raw.keys() and list(raw.keys())[0].isdigit():
+        old = {int(k): int(v) for k,v in raw.items()}
+        raw = {"via_username": {str(k): v for k,v in old.items()}}
+        # Kategori lain isi default beda-beda biar gak kosong
+        for kat in ["via_login", "via_komunitas", "plus", "limited"]:
+            if kat not in raw: raw[kat] = {str(k): v for k,v in DEFAULT_PRICELIST_PER_KATEGORI[kat].items()}
+    if not raw:
+        for kat in ["via_username", "via_login", "via_komunitas", "plus", "limited"]:
+            raw[kat] = {str(k): v for k,v in DEFAULT_PRICELIST_PER_KATEGORI[kat].items()}
+    raw[kategori] = {str(k): v for k,v in data.items()}
+    with open(PRICELIST_FILE, "w") as f: json.dump(raw, f, indent=2)
+def get_harga(robux, kategori="via_username"):
+    data = load_pricelist(kategori); return data.get(robux, robux * 150)
 def format_rp(n): return f"Rp {n:,}".replace(",", ".")
-def build_pricelist_text():
-    data = load_pricelist(); fast = ""; ecer = ""
+def build_pricelist_text(kategori="via_username"):
+    data = load_pricelist(kategori); fast = ""; ecer = ""
     for rbx in sorted(data.keys()):
         h = format_rp(data[rbx])
         if rbx >= 500: fast += f"{rbx} = {h}\n"
@@ -49,10 +82,17 @@ CATEGORY_PRICELIST = {
 }
 def build_pricelist_embed(kategori="via_username"):
     info = CATEGORY_PRICELIST.get(kategori, CATEGORY_PRICELIST["via_username"])
-    e = discord.Embed(title=info["title"], description=info["desc"] + "\n\n" + build_pricelist_text(), color=0xff69b4)
+    e = discord.Embed(title=info["title"], description=info["desc"] + "\n\n" + build_pricelist_text(kategori), color=0xff69b4)
     e.set_image(url=info["image"]); e.set_footer(text="Mipi Store - Rafi Store | Harga bisa berubah sewaktu-waktu"); return e
 def build_all_pricelist_embeds():
     return [build_pricelist_embed(k) for k in ["via_username", "via_login", "via_komunitas", "plus", "limited"]]
+def jenis_to_kategori(jenis):
+    j = jenis.upper()
+    if "VIA LOGIN" in j: return "via_login"
+    if "VIA KOMUNITAS" in j: return "via_komunitas"
+    if "PLUSS" in j or "PLUS" in j: return "plus"
+    if "LIMITED" in j or "OFFSALE" in j: return "limited"
+    return "via_username"
 
 LEADERBOARD_FILE = "leaderboard.json"
 def load_leaderboard():
@@ -61,10 +101,10 @@ def load_leaderboard():
     except: return {}
 def save_leaderboard(d):
     with open(LEADERBOARD_FILE, "w") as f: json.dump(d, f, indent=2)
-def add_to_leaderboard(user_id, username, paket_text):
+def add_to_leaderboard(user_id, username, paket_text, kategori="via_username"):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
     if not m: return
-    jumlah = int(m.group(1)); harga = get_harga(jumlah); data = load_leaderboard(); bulan = datetime.now().strftime("%Y-%m")
+    jumlah = int(m.group(1)); harga = get_harga(jumlah, kategori); data = load_leaderboard(); bulan = datetime.now().strftime("%Y-%m")
     if bulan not in data: data[bulan] = {}
     uid = str(user_id)
     if uid not in data[bulan]: data[bulan][uid] = {"username": username, "total": 0, "transaksi": 0, "total_rp": 0}
@@ -83,11 +123,11 @@ def load_pending():
     except: return {}
 def save_pending(d):
     with open(PENDING_FILE, "w") as f: json.dump(d, f, indent=2)
-def add_to_pending(user_id, username, paket_text, ticket_number, channel_name=""):
+def add_to_pending(user_id, username, paket_text, ticket_number, channel_name="", kategori="via_username"):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
     if not m: return None
-    jumlah = int(m.group(1)); harga = get_harga(jumlah); data = load_pending(); oid = f"ORDER-{ticket_number:06d}"
-    data[oid] = {"user_id": str(user_id), "username": username, "paket": paket_text, "robux": jumlah, "harga": harga, "ticket_number": ticket_number, "channel": channel_name, "waktu": datetime.now().strftime("%d %b %Y %H:%M")}; save_pending(data); return oid
+    jumlah = int(m.group(1)); harga = get_harga(jumlah, kategori); data = load_pending(); oid = f"ORDER-{ticket_number:06d}"
+    data[oid] = {"user_id": str(user_id), "username": username, "paket": paket_text, "robux": jumlah, "harga": harga, "ticket_number": ticket_number, "channel": channel_name, "kategori": kategori, "waktu": datetime.now().strftime("%d %b %Y %H:%M")}; save_pending(data); return oid
 
 def get_top_sultan_channel(guild):
     for ch in guild.text_channels:
@@ -148,7 +188,7 @@ class KonfirmasiSaldoView(discord.ui.View):
         if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.response.send_message("❌ Hanya Admin / Owner!", ephemeral=True); return
         pend = load_pending()
         if self.order_id not in pend: await interaction.response.send_message("❌ Udah dikonfirmasi / ditolak!", ephemeral=True); return
-        d = pend[self.order_id]; add_to_leaderboard(int(d["user_id"]), d["username"], d["paket"]); del pend[self.order_id]; save_pending(pend)
+        d = pend[self.order_id]; add_to_leaderboard(int(d["user_id"]), d["username"], d["paket"], kategori=d.get("kategori", "via_username")); del pend[self.order_id]; save_pending(pend)
         await interaction.response.send_message(f"✅ **SALDO DIKONFIRMASI!**\nBuyer: <@{d['user_id']}>\nPaket: {d['paket']}\n+{d['robux']} R$ udah masuk saldo + Top Sultan!", ephemeral=False)
         for item in self.children: item.disabled = True
         try: await interaction.message.edit(view=self)
@@ -227,10 +267,10 @@ def is_banned_selling(text):
     low = text.lower()
     if any(a in low for a in ALLOWED_IF_HAS) and "robux" not in low and "limited" not in low: return False
     return any(w in low for w in BANNED_WORDS)
-def hitung_harga(paket_text):
+def hitung_harga(paket_text, kategori="via_username"):
     m = re.search(r'(\d+)', str(paket_text).replace('.', '').replace(',', ''))
     if not m: return "500", "Rp 75.000"
-    jumlah = int(m.group(1)); return str(jumlah), f"Rp {get_harga(jumlah):,}".replace(",", ".")
+    jumlah = int(m.group(1)); return str(jumlah), f"Rp {get_harga(jumlah, kategori):,}".replace(",", ".")
 def get_status_channel(guild):
     for ch in guild.text_channels:
         if "order-status" in ch.name.lower(): return ch
@@ -258,7 +298,7 @@ async def send_status_update(guild, number, username, user_id, paket, status_tex
 async def send_history_log(guild, channel, data, admin_user):
     ch = get_history_channel(guild)
     if not ch: return
-    number = data["number"]; user_id = data["user_id"]; roblox_user = data.get("roblox_username", data.get("username", "-")); nickname = data.get("nickname", "-"); paket = data.get("paket", "500 Robux"); pembayaran = data.get("pembayaran", "Qris"); jumlah, harga = hitung_harga(paket); ticket_name = channel.name if channel else "ticket-" + str(number); admin_text = admin_user.mention if admin_user else "Auto-Close"
+    number = data["number"]; user_id = data["user_id"]; roblox_user = data.get("roblox_username", data.get("username", "-")); nickname = data.get("nickname", "-"); paket = data.get("paket", "500 Robux"); pembayaran = data.get("pembayaran", "Qris"); jumlah, harga = hitung_harga(paket, data.get("kategori", "via_username")); ticket_name = channel.name if channel else "ticket-" + str(number); admin_text = admin_user.mention if admin_user else "Auto-Close"
     embed = discord.Embed(color=0x2b2d31); embed.description = "Ticket Log\n\nTicket\n" + ticket_name + "\nAction\nClosed\nPanel\nMipi Store Ticket\nMember\n<@" + str(user_id) + ">\nNickname Roblox\n" + nickname + "\nUsername Roblox\n" + roblox_user + "\nJumlah Robux\n" + jumlah + "\nTotal Harga\n" + harga + "\nPayment\n" + pembayaran + "\nAdmin\n" + admin_text; embed.set_image(url=THANKYOU_URL); await ch.send(embed=embed)
 async def send_vouch(guild, user, paket, stars, komentar, ticket_number=0, ticket_name=""):
     ch = get_vouch_channel(guild)
@@ -293,11 +333,11 @@ async def do_auto_close(guild, channel, data, reason="auto-closed due to inactiv
         user = await bot.fetch_user(user_id); closer = admin_user.name if admin_user else "MIPI STORE (Auto-Close)"; embed = discord.Embed(title="Rate Your Experience", description="Hi " + user.name + "! Your support ticket has been resolved.\nPlease rate your experience by clicking a star below.\n\nTicket #" + str(number) + " in MIPI STORE\nResolved in\n" + str(duration) + " minutes\n\nClosed by\n" + closer, color=0x2b2d31); await user.send(embed=embed, view=RatingView(number))
     except: pass
     try:
-        order_id = add_to_pending(user_id, data.get("username", "User"), paket, number, channel.name if channel else "")
+        order_id = add_to_pending(user_id, data.get("username", "User"), paket, number, channel.name if channel else "", kategori=data.get("kategori", "via_username"))
         if order_id:
             ch_pending = get_history_channel(guild) or get_status_channel(guild)
             if ch_pending:
-                jumlah_tmp, harga_tmp = hitung_harga(paket)
+                jumlah_tmp, harga_tmp = hitung_harga(paket, data.get("kategori", "via_username"))
                 embed_p = discord.Embed(title=f"⏳ PENDING SALDO - {order_id}", description=f"Buyer: <@{user_id}>\nPaket: {paket}\nRobux: {jumlah_tmp} R$\nHarga: {harga_tmp}\nTicket: #{number}\n\n**Order ini BELUM masuk leaderboard!**\nAdmin harus pencet ✅ dulu baru masuk saldo!", color=0xfee75c)
                 await ch_pending.send(embed=embed_p, view=KonfirmasiSaldoView(order_id))
     except Exception as e: print(f"Gagal pending saldo: {e}")
@@ -384,7 +424,7 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self, interaction: discord.Interaction, button: discord.ui.Button):
         tr, tro, tt = get_total_belanja(interaction.user.id); embed = discord.Embed(color=0xff1493); embed.description = "INFORMASI SALDO / TOTAL TRANSAKSI\n\nHalo " + interaction.user.mention + ",\n\nTotal Belanja: " + format_rp(tr) + "\nTotal Robux: " + str(tro) + " R$\nTotal Transaksi: " + str(tt) + "x\n\nMIPI STORE - CHECK SALDO"; embed.set_footer(text="Mipi Store - Rafi Store"); await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# === EMOJI ATAS (EMBED) - UNICODE - DIJAMIN MUNCUL, GAK JADI :robux: LAGI ===
+# === EMOJI ATAS (EMBED) - UNICODE - DIJAMIN MUNCUL ===
 E_VIA = "💎"; E_VLOG = "💎"; E_BELI_LIMITED = "💠"; E_JUAL_LIMITED = "💰"; E_OFFSALE = "🎁"; E_PLUS = "⭐"; E_REKBER = "🛡️"; E_NANYA = "🐱"; E_KOMUNITAS = "👥"; E_AKUN = "💃"
 
 def build_ticket_panel_baru_embed():
@@ -413,13 +453,13 @@ class OrderModalBaru(discord.ui.Modal):
         overwrites = {guild.default_role: discord.PermissionOverwrite(read_messages=False), interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True), guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)}
         category = get_ticket_category(guild); prefix = self.jenis.lower().replace(" ", "-").replace("/", "-")
         channel = await guild.create_text_channel(name=f"{prefix}-{ticket_counter}-{interaction.user.name}", overwrites=overwrites, category=category)
-        paket_text = f"{self.jenis} - {self.f2.value}"; harga_akhir = 0
+        paket_text = f"{self.jenis} - {self.f2.value}"; harga_akhir = 0; kategori = jenis_to_kategori(self.jenis)
         if self.jenis in ["VIA SEND", "VIA LOGIN", "VIA KOMUNITAS"]:
-            m_temp = re.search(r'(\d+)', str(self.f3.value).replace('.', '')); jumlah_int = int(m_temp.group(1)) if m_temp else 500; harga_awal = get_harga(jumlah_int); kode_input = self.promo.value.strip() if self.promo and self.promo.value else ""; harga_akhir, diskon, err_promo = cek_promo(kode_input, harga_awal, jumlah_int)
+            m_temp = re.search(r'(\d+)', str(self.f3.value).replace('.', '')); jumlah_int = int(m_temp.group(1)) if m_temp else 500; harga_awal = get_harga(jumlah_int, kategori); kode_input = self.promo.value.strip() if self.promo and self.promo.value else ""; harga_akhir, diskon, err_promo = cek_promo(kode_input, harga_awal, jumlah_int)
             if kode_input and not err_promo and diskon > 0:
                 pdata = load_promo(); k_up = kode_input.upper()
                 if k_up in pdata: pdata[k_up]["dipakai"] = pdata[k_up].get("dipakai", 0) + 1; save_promo(pdata)
-        ticket_data[channel.id] = {"user_id": interaction.user.id, "username": interaction.user.name, "nickname": self.f1.value, "roblox_username": self.f1.value, "pembayaran": "QRIS", "created_at": time.time(), "last_activity": time.time(), "number": ticket_counter, "paket": paket_text, "promo": (self.promo.value if self.promo else ""), "harga_akhir": harga_akhir}
+        ticket_data[channel.id] = {"user_id": interaction.user.id, "username": interaction.user.name, "nickname": self.f1.value, "roblox_username": self.f1.value, "pembayaran": "QRIS", "created_at": time.time(), "last_activity": time.time(), "number": ticket_counter, "paket": paket_text, "promo": (self.promo.value if self.promo else ""), "harga_akhir": harga_akhir, "kategori": kategori}
         embed = discord.Embed(title=f"Ticket Baru - {self.jenis} - {interaction.user.name}", description=f"**Jenis:** {self.jenis}\n**Data 1:** {self.f1.value}\n**Data 2:** {self.f2.value}\n**Data 3:** {self.f3.value}\n" + (f"**Promo:** {self.promo.value}\n" if self.promo and self.promo.value else "") + f"\nTicket #{ticket_counter}\n\nSilahkan kirim bukti / detail disini ya 💗", color=0xff69b4)
         embed.set_image(url=WELCOME_URL); await channel.send(interaction.user.mention + " Halo! Selamat datang di MIPI STORE! 🌸", embed=embed, view=CloseView())
         embed_qris = discord.Embed(title="Scan QRIS Disini", description="Silahkan scan QRIS ini untuk pembayaran ya 💗", color=0xff69b4); embed_qris.set_image(url=QRIS_URL)
@@ -429,55 +469,34 @@ class OrderModalBaru(discord.ui.Modal):
         try: await interaction.user.send(f"Ticket MIPI STORE kamu sudah dibuat!\nJenis: {self.jenis}\nData: {self.f1.value} | {self.f2.value}\nLink: https://discord.com/channels/{guild.id}/{channel.id}\n\nKirim bukti QRIS kamu disana ya 💗")
         except: pass
 
-# === TOMBOL - RAPET 2-2-2-2-2 - EMOJI TOMBOL TETEP LAMA ===
+# === TOMBOL - RAPET DIJAMIN - EMOJI TETEP LAMA ===
+class ButtonTicket(discord.ui.Button):
+    def __init__(self, label, custom_id, row, emoji):
+        super().__init__(label=label, style=discord.ButtonStyle.primary, custom_id=custom_id, row=row, emoji=emoji)
+        self.jenis_map = {"t_via_send": "VIA SEND", "t_via_login": "VIA LOGIN", "t_beli_limited": "BELI LIMITED", "t_jual_limited": "JUAL LIMITED", "t_pluss": "ROBLOX PLUSS", "t_offsale": "BELI ITEM OFFSALE", "t_rekber": "REKBER", "t_other": "OTHER", "t_komunitas": "VIA KOMUNITAS", "t_beli_akun": "BELI AKUN"}
+    async def callback(self, interaction: discord.Interaction):
+        view = TicketTypeView()
+        if not await view.cek_store(interaction): return
+        await interaction.response.send_modal(OrderModalBaru(self.jenis_map[self.custom_id]))
 class TicketTypeView(discord.ui.View):
-    def __init__(self): super().__init__(timeout=None)
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(ButtonTicket("Robux Via Username", "t_via_send", row=0, emoji="<a:robux:1563387482182254725>"))
+        self.add_item(ButtonTicket("Robux Vlog", "t_via_login", row=0, emoji="<:emoji_10:1431192496876027975>"))
+        self.add_item(ButtonTicket("Beli Limited Item", "t_beli_limited", row=1, emoji="<a:diamond:1516624681585869041>"))
+        self.add_item(ButtonTicket("Jual Limited Item", "t_jual_limited", row=1, emoji="<a:moneybag:1512329138172596265>"))
+        self.add_item(ButtonTicket("Beli Roblox Plus", "t_pluss", row=2, emoji="<:b_RobloxPlus:1499160341983006730>"))
+        self.add_item(ButtonTicket("Beli Item Offsale", "t_offsale", row=2, emoji="<a:emoji_20:1550165111333986354>"))
+        self.add_item(ButtonTicket("Rekber/MM", "t_rekber", row=3, emoji="<a:emoji_39:1555770513907916822>"))
+        self.add_item(ButtonTicket("Other/Nanya", "t_other", row=3, emoji="<a:b_bluequestion:1345684551502008340>"))
+        self.add_item(ButtonTicket("Via Komunitas", "t_komunitas", row=4, emoji="<a:rbx:1530537752729223308>"))
+        self.add_item(ButtonTicket("Beli Akun", "t_beli_akun", row=4, emoji="<a:star_purple:1303353812374913035>"))
     async def cek_store(self, interaction):
         if STORE_STATUS == "break":
             embed = discord.Embed(color=0xfee75c); embed.description = "MIPI STORE LAGI BREAK! ☕\n\nMimin break sebentar yaa, 15-30 menit aja!"; await interaction.response.send_message(embed=embed, ephemeral=True); return False
         if STORE_STATUS == "closed":
             embed = discord.Embed(color=0xff0000); embed.description = "MIPI STORE UDAH TUTUP! 💤\n\nBalik besok yaa!"; await interaction.response.send_message(embed=embed, ephemeral=True); return False
         return True
-    @discord.ui.button(label="Robux Via Username", style=discord.ButtonStyle.primary, emoji="<a:robux:1563387482182254725>", custom_id="t_via_send", row=0)
-    async def t1(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("VIA SEND"))
-    @discord.ui.button(label="Robux Vlog", style=discord.ButtonStyle.primary, emoji="<:emoji_10:1431192496876027975>", custom_id="t_via_login", row=0)
-    async def t2(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("VIA LOGIN"))
-    @discord.ui.button(label="Beli Limited Item", style=discord.ButtonStyle.primary, emoji="<a:diamond:1516624681585869041>", custom_id="t_beli_limited", row=1)
-    async def t3(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("BELI LIMITED"))
-    @discord.ui.button(label="Jual Limited Item", style=discord.ButtonStyle.primary, emoji="<a:moneybag:1512329138172596265>", custom_id="t_jual_limited", row=1)
-    async def t4(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("JUAL LIMITED"))
-    @discord.ui.button(label="Beli Roblox Plus", style=discord.ButtonStyle.primary, emoji="<:b_RobloxPlus:1499160341983006730>", custom_id="t_pluss", row=2)
-    async def t5(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("ROBLOX PLUSS"))
-    @discord.ui.button(label="Beli Item Offsale", style=discord.ButtonStyle.primary, emoji="<a:emoji_20:1550165111333986354>", custom_id="t_offsale", row=2)
-    async def t6(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("BELI ITEM OFFSALE"))
-    @discord.ui.button(label="Rekber/MM", style=discord.ButtonStyle.primary, emoji="<a:emoji_39:1555770513907916822>", custom_id="t_rekber", row=3)
-    async def t7(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("REKBER"))
-    @discord.ui.button(label="Other/Nanya", style=discord.ButtonStyle.primary, emoji="<a:b_bluequestion:1345684551502008340>", custom_id="t_other", row=3)
-    async def t8(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("OTHER"))
-    @discord.ui.button(label="Via Komunitas", style=discord.ButtonStyle.primary, emoji="<a:rbx:1530537752729223308>", custom_id="t_komunitas", row=4)
-    async def t9(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("VIA KOMUNITAS"))
-    @discord.ui.button(label="Beli Akun", style=discord.ButtonStyle.primary, emoji="<a:star_purple:1303353812374913035>", custom_id="t_beli_akun", row=4)
-    async def t10(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not await self.cek_store(interaction): return
-        await interaction.response.send_modal(OrderModalBaru("BELI AKUN"))
 OrderView = TicketTypeView
 
 @bot.event
@@ -645,60 +664,80 @@ async def pricelist_top_sultan(interaction: discord.Interaction):
         try: await interaction.followup.send(f"❌ Error: {e}")
         except: pass
 
+# ===== EDIT HARGA PER KATEGORI - SEKARANG ADA PILIHAN KATEGORINYA =====
 class EditHargaModal(discord.ui.Modal, title="Ubah Harga"):
-    def __init__(self, robux_lama):
-        super().__init__(); self.robux_lama = robux_lama; self.harga_input = discord.ui.TextInput(label=f"Harga Baru untuk {robux_lama} Robux", placeholder="Contoh: 80000", required=True); self.add_item(self.harga_input)
+    def __init__(self, robux_lama, kategori):
+        super().__init__(); self.robux_lama = robux_lama; self.kategori = kategori; self.harga_input = discord.ui.TextInput(label=f"Harga Baru [{kategori}] {robux_lama} Robux", placeholder="Contoh: 80000", required=True); self.add_item(self.harga_input)
     async def on_submit(self, interaction: discord.Interaction):
         try: harga_baru = int(self.harga_input.value.replace(".", "").replace(",", "").replace("Rp", "").strip())
         except: await interaction.response.send_message("❌ Harga harus angka! Contoh: 80000", ephemeral=True); return
-        data = load_pricelist(); data[self.robux_lama] = harga_baru; save_pricelist(data); await update_all_panels(interaction.guild)
-        await interaction.response.send_message(f"✅ BERHASIL!\n{self.robux_lama} Robux ➡️ {format_rp(harga_baru)}\nSemua pricelist + panel ticket udah ke-update otomatis!", ephemeral=True)
+        data = load_pricelist(self.kategori); data[self.robux_lama] = harga_baru; save_pricelist(data, self.kategori); await update_all_panels(interaction.guild)
+        await interaction.response.send_message(f"✅ BERHASIL!\n[{self.kategori}] {self.robux_lama} Robux ➡️ {format_rp(harga_baru)}\nYang lain GAK KEUBAH! Cuma {self.kategori} doang!", ephemeral=True)
 class TambahPaketModal(discord.ui.Modal, title="Tambah Paket Baru"):
-    robux_input = discord.ui.TextInput(label="Jumlah Robux", placeholder="Contoh: 600", required=True); harga_input = discord.ui.TextInput(label="Harga", placeholder="Contoh: 90000", required=True)
+    def __init__(self, kategori):
+        super().__init__(); self.kategori = kategori; self.robux_input = discord.ui.TextInput(label="Jumlah Robux", placeholder="Contoh: 600", required=True); self.harga_input = discord.ui.TextInput(label="Harga", placeholder="Contoh: 90000", required=True); self.add_item(self.robux_input); self.add_item(self.harga_input)
     async def on_submit(self, interaction: discord.Interaction):
         try: rbx = int(self.robux_input.value.strip()); harga = int(self.harga_input.value.replace(".", "").replace("Rp", "").strip())
         except: await interaction.response.send_message("❌ Harus angka semua!", ephemeral=True); return
-        data = load_pricelist(); data[rbx] = harga; save_pricelist(data); await update_all_panels(interaction.guild); await interaction.response.send_message(f"✅ Paket baru ditambah!\n{rbx} Robux = {format_rp(harga)}", ephemeral=True)
+        data = load_pricelist(self.kategori); data[rbx] = harga; save_pricelist(data, self.kategori); await update_all_panels(interaction.guild); await interaction.response.send_message(f"✅ Paket baru ditambah!\n[{self.kategori}] {rbx} Robux = {format_rp(harga)}", ephemeral=True)
 class PricelistEditView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None); data = load_pricelist(); options = []
+    def __init__(self, kategori="via_username"):
+        super().__init__(timeout=None); self.kategori = kategori; data = load_pricelist(kategori); options = []
         for rbx in sorted(data.keys()): options.append(discord.SelectOption(label=f"{rbx} Robux - {format_rp(data[rbx])}", value=str(rbx)))
-        select = discord.ui.Select(placeholder="Pilih paket yang mau diubah...", options=options[:25], custom_id="pilih_paket_edit"); select.callback = self.pilih_paket; self.add_item(select)
+        select = discord.ui.Select(placeholder=f"Pilih paket [{kategori}] yang mau diubah...", options=options[:25], custom_id="pilih_paket_edit"); select.callback = self.pilih_paket; self.add_item(select)
     async def pilih_paket(self, interaction: discord.Interaction):
         if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
-        await interaction.response.send_modal(EditHargaModal(int(interaction.data["values"][0])))
+        await interaction.response.send_modal(EditHargaModal(int(interaction.data["values"][0]), self.kategori))
     @discord.ui.button(label="➕ Tambah Paket Baru", style=discord.ButtonStyle.success, custom_id="tambah_paket_btn")
     async def tambah_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != interaction.guild.owner_id: await interaction.response.send_message("Hanya Owner!", ephemeral=True); return
-        await interaction.response.send_modal(TambahPaketModal())
-    @discord.ui.button(label="👀 Lihat Pricelist", style=discord.ButtonStyle.primary, custom_id="lihat_pricelist_btn")
-    async def lihat_btn(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embeds=build_all_pricelist_embeds(), ephemeral=True)
-@bot.tree.command(name="edit-pricelist", description="Edit pricelist langsung di DC (Owner)")
+        await interaction.response.send_modal(TambahPaketModal(self.kategori))
+    @discord.ui.button(label="👀 Lihat Pricelist Ini", style=discord.ButtonStyle.primary, custom_id="lihat_pricelist_btn")
+    async def lihat_btn(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embed=build_pricelist_embed(self.kategori), ephemeral=True)
+class PricelistKategoriSelectView(discord.ui.View):
+    def __init__(self): super().__init__(timeout=None)
+    @discord.ui.button(label="Via Username", style=discord.ButtonStyle.primary, custom_id="edit_via_username")
+    async def b1(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embed=discord.Embed(title="✏️ EDIT - VIA USERNAME", description=build_pricelist_text("via_username"), color=0xff69b4), view=PricelistEditView("via_username"), ephemeral=True)
+    @discord.ui.button(label="Via Login / Vlog", style=discord.ButtonStyle.primary, custom_id="edit_via_login")
+    async def b2(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embed=discord.Embed(title="✏️ EDIT - VIA LOGIN", description=build_pricelist_text("via_login"), color=0xff69b4), view=PricelistEditView("via_login"), ephemeral=True)
+    @discord.ui.button(label="Via Komunitas", style=discord.ButtonStyle.primary, custom_id="edit_via_komunitas")
+    async def b3(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embed=discord.Embed(title="✏️ EDIT - VIA KOMUNITAS", description=build_pricelist_text("via_komunitas"), color=0xff69b4), view=PricelistEditView("via_komunitas"), ephemeral=True)
+    @discord.ui.button(label="Plus", style=discord.ButtonStyle.primary, custom_id="edit_plus")
+    async def b4(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embed=discord.Embed(title="✏️ EDIT - PLUS", description=build_pricelist_text("plus"), color=0xff69b4), view=PricelistEditView("plus"), ephemeral=True)
+    @discord.ui.button(label="Limited", style=discord.ButtonStyle.primary, custom_id="edit_limited")
+    async def b5(self, interaction: discord.Interaction, button: discord.ui.Button): await interaction.response.send_message(embed=discord.Embed(title="✏️ EDIT - LIMITED", description=build_pricelist_text("limited"), color=0xff69b4), view=PricelistEditView("limited"), ephemeral=True)
+
+@bot.tree.command(name="edit-pricelist", description="Edit pricelist per kategori (Owner) - Pilih dulu kategorinya")
 async def edit_pricelist(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     try:
         if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-        embed = discord.Embed(title="✏️ EDIT PRICELIST - DI DC AJA!", description="Ga usah buka website!\n\n1. Pilih paket di dropdown bawah\n2. Ketik harga baru\n3. Beres! Semua pricelist langsung ke-update!\n\nPricelist sekarang:\n\n" + build_pricelist_text(), color=0xff69b4)
-        await interaction.followup.send(embed=embed, view=PricelistEditView(), ephemeral=True)
+        embed = discord.Embed(title="✏️ EDIT PRICELIST - PILIH KATEGORI DULU!", description="Sekarang udah beda-beda!\n\nPencet dulu mau ngedit yang mana:\n• Via Username\n• Via Login / Vlog\n• Via Komunitas\n• Plus\n• Limited\n\nGanti 1 kategori, yang lain GAK KEUBAH!", color=0xff69b4)
+        await interaction.followup.send(embed=embed, view=PricelistKategoriSelectView(), ephemeral=True)
     except Exception as e: print(f"ERROR /edit-pricelist: {e}"); await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
-@bot.tree.command(name="set-harga", description="Ubah harga Robux cepat (Owner)")
-async def set_harga(interaction: discord.Interaction, robux: int, harga_baru: int):
+@bot.tree.command(name="set-harga", description="Ubah harga per kategori (Owner) - Contoh: via_login 100 17000")
+async def set_harga(interaction: discord.Interaction, kategori: str, robux: int, harga_baru: int):
     await interaction.response.defer(ephemeral=True)
     if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    data = load_pricelist(); hl = data.get(robux, 0); data[robux] = harga_baru; save_pricelist(data); await update_all_panels(interaction.guild); await interaction.followup.send(f"✅ Harga berubah!\n{robux} Robux: {format_rp(hl)} ➡️ {format_rp(harga_baru)}")
-@bot.tree.command(name="tambah-harga", description="Tambah paket baru (Owner)")
-async def tambah_harga(interaction: discord.Interaction, robux: int, harga: int):
+    kategori = kategori.lower().replace(" ", "_")
+    if kategori not in ["via_username", "via_login", "via_komunitas", "plus", "limited"]: await interaction.followup.send("Kategori harus: via_username / via_login / via_komunitas / plus / limited", ephemeral=True); return
+    data = load_pricelist(kategori); hl = data.get(robux, 0); data[robux] = harga_baru; save_pricelist(data, kategori); await update_all_panels(interaction.guild); await interaction.followup.send(f"✅ Harga berubah!\n[{kategori}] {robux} Robux: {format_rp(hl)} ➡️ {format_rp(harga_baru)}\nKategori lain GAK KEUBAH!")
+@bot.tree.command(name="tambah-harga", description="Tambah paket per kategori (Owner)")
+async def tambah_harga(interaction: discord.Interaction, kategori: str, robux: int, harga: int):
     await interaction.response.defer(ephemeral=True)
     if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    data = load_pricelist(); data[robux] = harga; save_pricelist(data); await update_all_panels(interaction.guild); await interaction.followup.send(f"✅ Paket baru ditambah!\n{robux} = {format_rp(harga)}")
-@bot.tree.command(name="hapus-harga", description="Hapus paket (Owner)")
-async def hapus_harga(interaction: discord.Interaction, robux: int):
+    kategori = kategori.lower().replace(" ", "_")
+    if kategori not in ["via_username", "via_login", "via_komunitas", "plus", "limited"]: await interaction.followup.send("Kategori harus: via_username / via_login / via_komunitas / plus / limited", ephemeral=True); return
+    data = load_pricelist(kategori); data[robux] = harga; save_pricelist(data, kategori); await update_all_panels(interaction.guild); await interaction.followup.send(f"✅ Paket baru ditambah!\n[{kategori}] {robux} = {format_rp(harga)}")
+@bot.tree.command(name="hapus-harga", description="Hapus paket per kategori (Owner)")
+async def hapus_harga(interaction: discord.Interaction, kategori: str, robux: int):
     await interaction.response.defer(ephemeral=True)
     if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    data = load_pricelist()
-    if robux not in data: await interaction.followup.send("Paket ga ketemu!", ephemeral=True); return
-    del data[robux]; save_pricelist(data); await update_all_panels(interaction.guild); await interaction.followup.send(f"✅ {robux} Robux udah dihapus!")
-@bot.tree.command(name="lihat-harga", description="Lihat pricelist sekarang")
+    kategori = kategori.lower().replace(" ", "_")
+    data = load_pricelist(kategori)
+    if robux not in data: await interaction.followup.send("Paket ga ketemu di kategori itu!", ephemeral=True); return
+    del data[robux]; save_pricelist(data, kategori); await update_all_panels(interaction.guild); await interaction.followup.send(f"✅ [{kategori}] {robux} Robux udah dihapus!")
+@bot.tree.command(name="lihat-harga", description="Lihat semua pricelist (udah beda-beda)")
 async def lihat_harga(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True); await interaction.followup.send(embeds=build_all_pricelist_embeds(), ephemeral=True)
 
@@ -742,13 +781,15 @@ async def setup_saldo(interaction: discord.Interaction):
     if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
     embed = discord.Embed(title="CEK SALDO - MIPI STORE", description="MAU TAU UDAH HABIS BERAPA DI MIPI STORE?\n\nPencet tombol CEK SALDO SAYA dibawah ini!", color=0xff69b4); await interaction.followup.send(embed=embed, view=SaldoView())
 @bot.tree.command(name="add-saldo", description="Tambah saldo manual ke buyer (Admin / Owner only)")
-async def add_saldo(interaction: discord.Interaction, user: discord.User, robux: int):
+async def add_saldo(interaction: discord.Interaction, user: discord.User, robux: int, kategori: str = "via_username"):
     await interaction.response.defer(ephemeral=True)
     if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.followup.send("Hanya Admin / Owner!", ephemeral=True); return
     if robux <= 0: await interaction.followup.send("Jumlah Robux harus lebih dari 0!", ephemeral=True); return
-    harga = get_harga(robux)
-    add_to_leaderboard(user.id, user.name, f"{robux} Robux")
-    await interaction.followup.send(f"✅ Saldo ditambah!\nBuyer: {user.mention}\n+{robux} R$ ({format_rp(harga)})")
+    kategori = kategori.lower().replace(" ", "_")
+    if kategori not in ["via_username", "via_login", "via_komunitas", "plus", "limited"]: kategori = "via_username"
+    harga = get_harga(robux, kategori)
+    add_to_leaderboard(user.id, user.name, f"{robux} Robux", kategori=kategori)
+    await interaction.followup.send(f"✅ Saldo ditambah!\nBuyer: {user.mention}\n+{robux} R$ ({format_rp(harga)}) [{kategori}]")
     try: await update_top_sultan(interaction.guild)
     except: pass
 
