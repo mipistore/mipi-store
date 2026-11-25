@@ -384,7 +384,8 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self, interaction: discord.Interaction, button: discord.ui.Button):
         tr, tro, tt = get_total_belanja(interaction.user.id); embed = discord.Embed(color=0xff1493); embed.description = "INFORMASI SALDO / TOTAL TRANSAKSI\n\nHalo " + interaction.user.mention + ",\n\nTotal Belanja: " + format_rp(tr) + "\nTotal Robux: " + str(tro) + " R$\nTotal Transaksi: " + str(tt) + "x\n\nMIPI STORE - CHECK SALDO"; embed.set_footer(text="Mipi Store - Rafi Store"); await interaction.response.send_message(embed=embed, ephemeral=True)
 
-E_VIA = "<:mipi_via:1575065825273057373>"; E_VLOG = "<:mipi_vlog:1575065825273057373>"; E_BELI_LIMITED = "<:mipi_limited:1575065707253858336>"; E_JUAL_LIMITED = "<:mipi_jual:1575065707253858336>"; E_OFFSALE = "<:mipi_offsale:1575064612343250996>"; E_PLUS = "<:mipi_plus:1575068191418355813>"; E_REKBER = "<:mipi_rekber:1575102785433772063>"; E_NANYA = "<:mipi_nanya:1575067658666377249>"; E_KOMUNITAS = "<:mipi_komunitas:1575065825273057373>"; E_AKUN = "<:mipi_akun:1575065460339122187>"
+# === EMOJI BARU - UPDATE 26 Nov 2026 ===
+E_VIA = "<:mipi_via:1575065825273057373>"; E_VLOG = "<:mipi_vlog:1575065825273057373>"; E_BELI_LIMITED = "<a:diamond:1516624681585869041>"; E_JUAL_LIMITED = "<a:moneybag:1512329138172596265>"; E_OFFSALE = "<a:emoji_20:1550165111333986354>"; E_PLUS = "<:b_RobloxPlus:1499160341983006730>"; E_REKBER = "<a:emoji_39:1555770513907916822>"; E_NANYA = "<a:b_bluequestion:1345684551502008340>"; E_KOMUNITAS = "<:mipi_komunitas:1575065825273057373>"; E_AKUN = "<a:star_purple:1303353812374913035>"
 def build_ticket_panel_baru_embed():
     e = discord.Embed(title="🎫 Mipi Store - Ticket Order", description=f"{E_VIA} **Robux Via Username** - Beli Robux Via Username\n{E_VLOG} **Robux Vlog** - Beli Robux melalui via login\n{E_BELI_LIMITED} **Beli Limited Item** - Beli Item Via Trade\n{E_JUAL_LIMITED} **Jual Limited Item** - Dapatkan Uang (Cashout)\n{E_OFFSALE} **Beli Item Offsale** - Via Redeem Code\n{E_PLUS} **Beli Roblox Plus** - Roblox Plus Monthly\n{E_REKBER} **Rekber/MM** - Rekber, Akun, Jasa, dll\n{E_NANYA} **Other/Nanya** - Pertanyaan & bantuan lainnya\n{E_KOMUNITAS} **Via Komunitas** - Beli Robux Via Komunitas / Group\n{E_AKUN} **Beli Akun** - Beli Akun Roblox Sultan / Stok\n\nMipi Store Powered by MIPI 💗", color=0x2B2D31)
     e.set_image(url=WELCOME_URL); e.set_footer(text="Mipi Store - Pilih tombol di bawah sesuai kebutuhan kamu!"); return e
@@ -441,27 +442,27 @@ class TicketTypeView(discord.ui.View):
     async def t2(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("VIA LOGIN"))
-    @discord.ui.button(label="Beli Limited Item", style=discord.ButtonStyle.primary, emoji="<:mipi_limited:1575065707253858336>", custom_id="t_beli_limited", row=1)
+    @discord.ui.button(label="Beli Limited Item", style=discord.ButtonStyle.primary, emoji="<a:diamond:1516624681585869041>", custom_id="t_beli_limited", row=1)
     async def t3(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI LIMITED"))
-    @discord.ui.button(label="Jual Limited Item", style=discord.ButtonStyle.primary, emoji="<:mipi_jual:1575065707253858336>", custom_id="t_jual_limited", row=1)
+    @discord.ui.button(label="Jual Limited Item", style=discord.ButtonStyle.primary, emoji="<a:moneybag:1512329138172596265>", custom_id="t_jual_limited", row=1)
     async def t4(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("JUAL LIMITED"))
-    @discord.ui.button(label="Beli Roblox Plus", style=discord.ButtonStyle.primary, emoji="<:mipi_plus:1575068191418355813>", custom_id="t_pluss", row=2)
+    @discord.ui.button(label="Beli Roblox Plus", style=discord.ButtonStyle.primary, emoji="<:b_RobloxPlus:1499160341983006730>", custom_id="t_pluss", row=2)
     async def t5(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("ROBLOX PLUSS"))
-    @discord.ui.button(label="Beli Item Offsale", style=discord.ButtonStyle.primary, emoji="<:mipi_offsale:1575064612343250996>", custom_id="t_offsale", row=2)
+    @discord.ui.button(label="Beli Item Offsale", style=discord.ButtonStyle.primary, emoji="<a:emoji_20:1550165111333986354>", custom_id="t_offsale", row=2)
     async def t6(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI ITEM OFFSALE"))
-    @discord.ui.button(label="Rekber/MM", style=discord.ButtonStyle.primary, emoji="<:mipi_rekber:1575102785433772063>", custom_id="t_rekber", row=3)
+    @discord.ui.button(label="Rekber/MM", style=discord.ButtonStyle.primary, emoji="<a:emoji_39:1555770513907916822>", custom_id="t_rekber", row=3)
     async def t7(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("REKBER"))
-    @discord.ui.button(label="Other/Nanya", style=discord.ButtonStyle.primary, emoji="<:mipi_nanya:1575067658666377249>", custom_id="t_other", row=3)
+    @discord.ui.button(label="Other/Nanya", style=discord.ButtonStyle.primary, emoji="<a:b_bluequestion:1345684551502008340>", custom_id="t_other", row=3)
     async def t8(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("OTHER"))
@@ -469,7 +470,7 @@ class TicketTypeView(discord.ui.View):
     async def t9(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("VIA KOMUNITAS"))
-    @discord.ui.button(label="Beli Akun", style=discord.ButtonStyle.primary, emoji="<:mipi_akun:1575065460339122187>", custom_id="t_beli_akun", row=4)
+    @discord.ui.button(label="Beli Akun", style=discord.ButtonStyle.primary, emoji="<a:star_purple:1303353812374913035>", custom_id="t_beli_akun", row=4)
     async def t10(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not await self.cek_store(interaction): return
         await interaction.response.send_modal(OrderModalBaru("BELI AKUN"))
@@ -740,126 +741,11 @@ async def add_saldo(interaction: discord.Interaction, user: discord.User, robux:
     await interaction.response.defer(ephemeral=True)
     if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.followup.send("Hanya Admin / Owner!", ephemeral=True); return
     if robux <= 0: await interaction.followup.send("Jumlah Robux harus lebih dari 0!", ephemeral=True); return
-    harga = get_harga(robux); add_to_leaderboard(user.id, user.name, str(robux) + " Robux"); tr, tro, tt = get_total_belanja(user.id)
-    embed = discord.Embed(color=0x57f287); embed.description = "Saldo " + user.mention + " ditambah!\n\n+" + str(robux) + " R$\n+" + format_rp(harga)
-    await interaction.followup.send(embed=embed)
+    harga = get_harga(robux); add_to_leaderboard(user.id, user.name, f"{robux} Robux")
     try: await update_top_sultan(interaction.guild)
     except: pass
-@bot.command(name="add-saldo")
-async def add_saldo_prefix(ctx, user: discord.User, robux: int):
-    if not is_admin_or_owner(ctx.author, ctx.guild): await ctx.send("Hanya Admin / Owner!"); return
-    harga = get_harga(robux); add_to_leaderboard(user.id, user.name, str(robux) + " Robux"); await ctx.send("Saldo " + user.mention + " ditambah!\n+" + str(robux) + " R$\n+" + format_rp(harga))
-@bot.tree.command(name="kurangi-saldo", description="Kurangi saldo buyer (Admin/Owner)")
-async def kurangi_saldo(interaction: discord.Interaction, user: discord.User, robux: int, alasan: str = ""):
-    await interaction.response.defer(ephemeral=True)
-    if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.followup.send("Hanya Admin / Owner!", ephemeral=True); return
-    if robux <= 0: await interaction.followup.send("Jumlah harus lebih dari 0!", ephemeral=True); return
-    tr, tro, tt = get_total_belanja(user.id)
-    if robux > tro: await interaction.followup.send(f"GAGAL! Saldo {user.mention} cuma {tro} R$", ephemeral=True); return
-    data = load_leaderboard(); sisa = robux
-    for bulan in sorted(data.keys(), reverse=True):
-        if str(user.id) in data[bulan] and sisa > 0:
-            cur = data[bulan][str(user.id)]["total"]; potong = min(cur, sisa); data[bulan][str(user.id)]["total"] -= potong; data[bulan][str(user.id)]["total_rp"] -= get_harga(potong); sisa -= potong
-    save_leaderboard(data); tr2, tro2, _ = get_total_belanja(user.id); await interaction.followup.send(f"Saldo {user.mention} dikurangi -{robux} R$, sisa {tro2} R$")
-@bot.tree.command(name="pending-saldo", description="Lihat pending saldo (Admin)")
-async def pending_saldo_cmd(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.followup.send("Hanya Admin / Owner!", ephemeral=True); return
-    pend = load_pending()
-    if not pend: await interaction.followup.send("Ga ada pending!", ephemeral=True); return
-    txt = "**PENDING SALDO:**\n\n"
-    for oid, d in pend.items(): txt += f"• {oid} | <@{d['user_id']}> | {d['paket']} | {d['robux']} R$\n"
-    await interaction.followup.send(txt, ephemeral=True)
-@bot.tree.command(name="konfirmasi-saldo", description="Konfirmasi manual order (Admin)")
-async def konfirmasi_saldo_cmd(interaction: discord.Interaction, order_id: str):
-    await interaction.response.defer(ephemeral=True)
-    if not is_admin_or_owner(interaction.user, interaction.guild): await interaction.followup.send("Hanya Admin / Owner!", ephemeral=True); return
-    pend = load_pending(); order_id = order_id.upper().strip()
-    if order_id not in pend: await interaction.followup.send(f"{order_id} ga ketemu!", ephemeral=True); return
-    d = pend[order_id]; add_to_leaderboard(int(d["user_id"]), d["username"], d["paket"]); del pend[order_id]; save_pending(pend); await interaction.followup.send(f"{order_id} dikonfirmasi! +{d['robux']} R$ ke <@{d['user_id']}>!")
-@bot.tree.command(name="buat-promo", description="Buat kode promo (Owner)")
-async def buat_promo(interaction: discord.Interaction, kode: str, diskon: int, tipe: str = "nominal", max_pakai: int = 10):
-    await interaction.response.defer(ephemeral=True)
-    if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    kode = kode.upper().strip(); data = load_promo(); data[kode] = {"diskon": diskon, "tipe": tipe, "max": max_pakai, "dipakai": 0, "dibuat_oleh": interaction.user.name}; save_promo(data)
-    await interaction.followup.send(f"Promo {kode} dibuat! Diskon {diskon}")
-@bot.tree.command(name="list-promo", description="Lihat semua promo")
-async def list_promo(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    data = load_promo()
-    if not data: await interaction.followup.send("Belum ada promo!", ephemeral=True); return
-    desc = "LIST PROMO:\n\n"
-    for kode, p in data.items(): desc += f"{kode} - Diskon {p['diskon']} - Sisa {p.get('max',999)-p.get('dipakai',0)}\n"
-    await interaction.followup.send(embed=discord.Embed(description=desc, color=0xff69b4), ephemeral=True)
-@bot.tree.command(name="cek-promo", description="Cek kode promo")
-async def cek_promo_cmd(interaction: discord.Interaction, kode: str, paket: str = "500"):
-    await interaction.response.defer(ephemeral=True)
-    kode_up = kode.upper().strip(); data = load_promo()
-    if kode_up not in data: await interaction.followup.send("Kode ga ketemu!", ephemeral=True); return
-    p = data[kode_up]; m = re.search(r'(\d+)', str(paket).replace('.', '')); jumlah = int(m.group(1)) if m else 500; ha = get_harga(jumlah); hb, diskon, err = cek_promo(kode_up, ha, jumlah)
-    if err: await interaction.followup.send(err, ephemeral=True); return
-    await interaction.followup.send(f"Kode {kode_up} AKTIF!\nHarga Normal: {format_rp(ha)}\nDiskon: {format_rp(diskon)}\nSetelah Diskon: {format_rp(hb)}", ephemeral=True)
-@bot.tree.command(name="hapus-promo", description="Hapus promo (Owner)")
-async def hapus_promo(interaction: discord.Interaction, kode: str):
-    await interaction.response.defer(ephemeral=True)
-    if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    kode = kode.upper().strip(); data = load_promo()
-    if kode not in data: await interaction.followup.send("Kode ga ketemu!", ephemeral=True); return
-    del data[kode]; save_promo(data); await interaction.followup.send(f"Promo {kode} dihapus!", ephemeral=True)
-@bot.tree.command(name="giveaway", description="Buat giveaway (Owner)")
-async def giveaway_create(interaction: discord.Interaction, hadiah: str, durasi_menit: int, pemenang: int = 1):
-    await interaction.response.defer()
-    if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    gid = str(interaction.channel.id) + "-" + str(interaction.id); end_time = int(time.time() + durasi_menit * 60)
-    giveaway_data[gid] = {"hadiah": hadiah, "host_mention": interaction.user.mention, "host_id": interaction.user.id, "end_timestamp": end_time, "pemenang": pemenang, "peserta": [], "ended": False, "channel_id": interaction.channel.id}
-    embed = discord.Embed(title="GIVEAWAY MIPI STORE!", description=f"Hadiah: {hadiah}\nHost: {interaction.user.mention}\nBerakhir: <t:{end_time}:R>\nPemenang: {pemenang} orang", color=0xff69b4)
-    msg = await interaction.followup.send(embed=embed, view=GiveawayView(gid)); giveaway_data[gid]["message_id"] = msg.id; await asyncio.sleep(durasi_menit * 60); await end_giveaway(interaction.guild, interaction.channel.id, msg.id, gid)
-@bot.tree.command(name="giveaway-end", description="Akhiri giveaway (Owner)")
-async def giveaway_end(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    found = None
-    for gid, data in giveaway_data.items():
-        if data["channel_id"] == interaction.channel.id and not data["ended"]: found = (gid, data); break
-    if not found: await interaction.followup.send("Ga ada giveaway jalan!", ephemeral=True); return
-    gid, data = found; await interaction.followup.send("Giveaway diakhiri!", ephemeral=True); await end_giveaway(interaction.guild, interaction.channel.id, data.get("message_id"), gid)
-@bot.tree.command(name="market-rules", description="Kirim aturan market")
-async def market_rules(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    if interaction.user.id != interaction.guild.owner_id: await interaction.followup.send("Hanya Owner!", ephemeral=True); return
-    embed = discord.Embed(title="Stickied Message:", description="DILARANG MENJUAL PRODUK YANG KAMI JUAL SEPERTI ROBUX DAN LIMITED ITEM", color=0xff0000)
-    msg = await interaction.channel.send(embed=embed)
-    try: await msg.pin()
-    except: pass
-    await interaction.followup.send("Aturan market sudah di-pin!", ephemeral=True)
-@bot.tree.command(name="ping", description="Cek bot")
-async def ping(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True); await interaction.followup.send(f"Pong! MIPI STORE online! {round(bot.latency*1000)}ms", ephemeral=True)
-@bot.tree.command(name="checkavatar", description="Cek profil Roblox")
-async def checkavatar(interaction: discord.Interaction, username: str):
-    await interaction.response.defer()
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 MIPI-STORE-Bot"}
-        async with aiohttp.ClientSession(headers=headers) as s:
-            async with s.post("https://users.roproxy.com/v1/usernames/users", json={"usernames": [username], "excludeBannedUsers": True}) as r:
-                data = await r.json()
-                if not data.get("data"): await interaction.followup.send(f"Username {username} tidak ditemukan!"); return
-                user = data["data"][0]; user_id = user["id"]; display = user.get("displayName", username); uname = user.get("name", username)
-            async with s.get(f"https://users.roproxy.com/v1/users/{user_id}") as r:
-                info = await r.json(); created = info.get("created", ""); desc = info.get("description", "-") or "-"
-                try: tgl = datetime.fromisoformat(created.replace("Z", "+00:00")).strftime("%d %B %Y")
-                except: tgl = created
-            async with s.get(f"https://thumbnails.roproxy.com/v1/users/avatar-headshot?userIds={user_id}&size=420x420&format=Png&isCircular=false") as r:
-                thumb = await r.json(); img_url = thumb.get("data", [{}])[0].get("imageUrl", "")
-        embed = discord.Embed(title=f"👤 {display} (@{uname})", description=f"**User ID:** {user_id}\n**Display:** {display}\n**Username:** @{uname}\n**Dibuat:** {tgl}\n**Bio:** {desc[:400]}\n\n[Lihat Profil](https://www.roblox.com/users/{user_id}/profile)", color=0xff69b4)
-        if img_url: embed.set_thumbnail(url=img_url)
-        await interaction.followup.send(embed=embed)
-    except Exception as e:
-        await interaction.followup.send(f"Gagal cek avatar: {e}")
+    await interaction.followup.send(f"✅ Saldo ditambah!\nBuyer: {user.mention}\n+{robux} R$ ({format_rp(harga)}) udah masuk leaderboard + Top Sultan!")
 
-TOKEN = os.getenv("TOKEN") or os.getenv("DISCORD_TOKEN") or os.getenv("DISCORD_BOT_TOKEN") or os.getenv("DISCORD")
-print(f"TOKEN ketemu? {bool(TOKEN)}")
-if not TOKEN:
-    print("ERROR: TOKEN ga ketemu di Railway Variables!")
-else:
-    bot.run(TOKEN)
+# === JALANKAN BOT - pake TOKEN dari env / isi manual ===
+# Di hosting kamu, TOKEN diambil dari environment variable
+bot.run(os.getenv("DISCORD_TOKEN", "TOKEN_BOT_KAMU"))
