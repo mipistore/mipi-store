@@ -55,7 +55,6 @@ def kategori_alias(k):
     m={"visend":"via_username","via_send":"via_username","via_username":"via_username","vilog":"via_login","via_login":"via_login","vlog":"via_login","komunitas":"via_komunitas","via_komunitas":"via_komunitas","plus":"plus","roblox_plus":"plus","roblox_pluss":"plus","pluss":"plus","limited":"limited","rekber":"rekber","mm":"rekber","middleman":"rekber","beli_akun":"beli_akun","other":"other","nanya":"other"}
     return m.get(k,k)
 
-# ===== HARGA ASLI - UDAH DIPISAH, GAK PAKE RUMUS! =====
 LIMITED_ITEMS={
   "8bit_royal_crown":{"nama":"8-BIT ROYAL CROWN","harga":2300000,"emoji":"<:BRC:1510531815427805194>"},
   "8bit_hp_bar":{"nama":"8-BIT HP BAR","harga":850000,"emoji":"<:HPBAR:1510531549274312824>"},
@@ -198,11 +197,17 @@ def build_produk_embed():
 LEADERBOARD_FILE="leaderboard.json"
 def load_leaderboard(): return _load(LEADERBOARD_FILE,{})
 def save_leaderboard(d): _save(LEADERBOARD_FILE,d)
-def add_to_leaderboard(user_id,username,paket_text,kategori="via_username"):
+def add_to_leaderboard(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
     try:
-        m=re.search(r'(\d+)',str(paket_text).replace('.','').replace(',',''))
-        if not m: return
-        jumlah=int(m.group(1));harga=get_harga(jumlah,kategori);data=load_leaderboard();bulan=datetime.now().strftime("%Y-%m")
+        if robux_jumlah is not None:
+            jumlah=int(robux_jumlah);harga=int(harga_akhir) if harga_akhir else get_harga(jumlah,kategori)
+        else:
+            m=re.search(r'(\d+)',str(paket_text).replace('.','').replace(',',''))
+            if not m: return
+            jumlah=int(m.group(1));harga=get_harga(jumlah,kategori)
+        if jumlah<=0 and harga<=0: return
+        if jumlah<=0: jumlah=0
+        data=load_leaderboard();bulan=datetime.now().strftime("%Y-%m")
         if bulan not in data: data[bulan]={}
         uid=str(user_id)
         if uid not in data[bulan]: data[bulan][uid]={"username":username,"total":0,"transaksi":0,"total_rp":0}
@@ -226,7 +231,7 @@ def add_to_pending(user_id,username,paket_text,ticket_number,channel_name="",kat
             m=re.search(r'(\d+)',str(paket_text).replace('.','').replace(',',''))
             if not m: return None
             jumlah=int(m.group(1));harga=get_harga(jumlah,kategori)
-        if jumlah<=0: return None
+        if jumlah<=0 and harga<=0: return None
         data=load_pending();oid=f"ORDER-{ticket_number:06d}";data[oid]={"user_id":str(user_id),"username":username,"paket":paket_text,"robux":jumlah,"harga":harga,"ticket_number":ticket_number,"channel":channel_name,"kategori":kategori,"waktu":datetime.now().strftime("%d %b %Y %H:%M"),"referral_by":referral_by};save_pending(data);return oid
     except Exception as e: print(f"add pending error: {e}");return None
 def load_referral(): return _load("referral.json",{})
@@ -312,7 +317,7 @@ def build_top_sultan_embed_bulanan():
         else:
             medals=["🥇","🥈","🥉"]
             for i,(uid,info) in enumerate(s):
-                medal=medals[i] if i<3 else "🏅";desc+=f"{medal} **#{i+1} - <@{uid}>** ({info.get('username','User')})\n└ Rp {info.get('total_rp',0):,} • {info.get('transaksi',0)}x\n".replace(",",".")
+                medal=medals[i] if i<3 else "🏅";desc+=f"{medal} **#{i+1} - <@{uid}>** ({info.get('username','User')})\n└ Rp {info.get('total_rp',0):,} • {info.get('total',0):,} R$ • {info.get('transaksi',0)}x\n".replace(",",".")
         desc+=f"\n🕒 Update: {datetime.now().strftime('%Y-%m-%d %H:%M')} WIB";e=discord.Embed(title=f"🏆 TOP 10 SULTAN BULANAN - {nama_bulan}",description=desc,color=0xff69b4);e.set_image(url=TOP_SULTAN_IMAGE);return e
     except: return discord.Embed(title="Top Sultan",description="Error",color=0xff0000)
 def build_top_sultan_embed_semua():
@@ -327,15 +332,15 @@ def build_top_sultan_embed_semua():
         else:
             medals=["🥇","🥈","🥉"]
             for i,(uid,info) in enumerate(s):
-                medal=medals[i] if i<3 else "🏅";desc+=f"{medal} **#{i+1} - <@{uid}>** ({info['username']})\n└ Rp {info['total_rp']:,} • {info['transaksi']}x\n".replace(",",".")
+                medal=medals[i] if i<3 else "🏅";desc+=f"{medal} **#{i+1} - <@{uid}>** ({info['username']})\n└ Rp {info['total_rp']:,} • {info['total']:,} R$ • {info['transaksi']}x\n".replace(",",".")
         e=discord.Embed(title="👑 TOP 10 SULTAN SEMUA / ALL TIME",description=desc,color=0x2B2D31);e.set_image(url=TOP_SULTAN_IMAGE);return e
     except: return discord.Embed(title="Top Sultan",description="Error",color=0xff0000)
-def build_top_sultan_embed(): return build_top_sultan_embed_semua()
+def build_top_sultan_embed(): return build_top_sultan_embed_bulanan()
 async def update_top_sultan(guild):
     try:
         ch=get_top_sultan_channel(guild)
         if not ch: return
-        embed=build_top_sultan_embed_semua()
+        embed=build_top_sultan_embed_bulanan()
         async for msg in ch.history(limit=20):
             if msg.author==guild.me and msg.embeds and "TOP 10 SULTAN" in str(msg.embeds[0].title): await msg.edit(embed=embed);return
         await ch.send(embed=embed)
@@ -372,7 +377,6 @@ def is_admin_or_owner(user,guild):
         rn=[r.name.lower() for r in user.roles]
         return any(x in rn for x in ["admin","owner","staff","moderator","adm"])
     except: return False
-        # ===== PART 2 - VIEWS, MODAL, TICKET, PRICELIST DROPDOWN =====
 class KonfirmasiSaldoView(discord.ui.View):
     def __init__(self,order_id):
         super().__init__(timeout=None);self.order_id=order_id
@@ -381,13 +385,16 @@ class KonfirmasiSaldoView(discord.ui.View):
         if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.response.send_message("❌ Hanya Admin / Owner!",ephemeral=True);return
         pend=load_pending()
         if self.order_id not in pend: await interaction.response.send_message("❌ Udah dikonfirmasi / ditolak!",ephemeral=True);return
-        d=pend[self.order_id];add_to_leaderboard(int(d["user_id"]),d["username"],d["paket"],kategori=d.get("kategori","via_username"));del pend[self.order_id];save_pending(pend)
+        d=pend[self.order_id];add_to_leaderboard(int(d["user_id"]),d["username"],d["paket"],kategori=d.get("kategori","via_username"),robux_jumlah=d.get("robux"),harga_akhir=d.get("harga"));del pend[self.order_id];save_pending(pend)
         komisi_txt=""
         if d.get("referral_by"):
             komisi=add_referral_komisi(d["referral_by"],d["harga"],d["username"]);komisi_txt=f"\n💸 Referral: <@{d['referral_by']}> dapet {format_rp(komisi)} (5%)!"
         await interaction.response.send_message(f"✅ **SALDO DIKONFIRMASI!**\nBuyer: <@{d['user_id']}>\nPaket: {d['paket']}\n+{d['robux']} R$ udah masuk saldo!{komisi_txt}",ephemeral=False)
         for item in self.children: item.disabled=True
         try: await interaction.message.edit(view=self)
+        except: pass
+        try:
+            tr,_,_=get_total_belanja(int(d["user_id"]));await check_auto_role(interaction.guild,int(d["user_id"]),tr)
         except: pass
         try: await update_top_sultan(interaction.guild)
         except: pass
@@ -616,8 +623,8 @@ class OrderModalBaru(discord.ui.Modal):
         self.jenis=jenis
         super().__init__(title=f"Order - {jenis} | MIPI STORE")
         if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
-label1,label2,label3="Username Roblox + Nickname","Nominal Robux","Metode Pembayaran"
-ph1,ph2,ph3="Contoh: RafixMP (Rafi)","Contoh: 200","Contoh: QRIS / Dana"
+            label1,label2,label3="Username Roblox + Nickname","Nominal Robux","Metode Pembayaran"
+            ph1,ph2,ph3="Contoh: RafixMP (Rafi)","Contoh: 200","Contoh: QRIS / Dana"
         elif jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE"]:
             label1,label2,label3="Nama Item","Harga / Budget","Username Roblox"
             ph1,ph2,ph3="Contoh: Classic Fedora","Contoh: 50000","Contoh: RafixMP"
@@ -642,14 +649,18 @@ ph1,ph2,ph3="Contoh: RafixMP (Rafi)","Contoh: 200","Contoh: QRIS / Dana"
     async def on_submit(self,interaction:discord.Interaction):
         global ticket_counter;ticket_counter+=1;guild=interaction.guild;overwrites={guild.default_role:discord.PermissionOverwrite(read_messages=False),interaction.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),guild.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)};category=get_ticket_category(guild);prefix=self.jenis.lower().replace(" ","-").replace("/","-");channel=await guild.create_text_channel(name=f"{prefix}-{ticket_counter}-{interaction.user.name}",overwrites=overwrites,category=category);paket_text=f"{self.jenis} - {self.f2.value}";harga_akhir=0;kategori=jenis_to_kategori(self.jenis);robux_jumlah_fix=0;ref_by=None
         if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
-            m_temp=re.search(r'(\d+)',str(self.f3.value).replace('.',''));jumlah_int=int(m_temp.group(1)) if m_temp else 500;robux_jumlah_fix=jumlah_int;harga_awal=get_harga(jumlah_int,kategori);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err_promo=cek_promo(kode_input,harga_awal,jumlah_int)
+            m_temp=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''));jumlah_int=int(m_temp.group(1)) if m_temp else 500;robux_jumlah_fix=jumlah_int;harga_awal=get_harga(jumlah_int,kategori);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err_promo=cek_promo(kode_input,harga_awal,jumlah_int)
             if kode_input and not err_promo and diskon>0:
                 pdata=load_promo();k_up=kode_input.upper()
                 if k_up in pdata: pdata[k_up]["dipakai"]=pdata[k_up].get("dipakai",0)+1;save_promo(pdata)
             if self.ref and self.ref.value: ref_by=claim_referral(interaction.user.id,self.ref.value.strip())
+        elif self.jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE","BELI AKUN","REKBER"]:
+            m_temp=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''))
+            if m_temp:
+                robux_jumlah_fix=0;harga_akhir=int(m_temp.group(1))
+            else: harga_akhir=0
         ticket_data[channel.id]={"user_id":interaction.user.id,"username":interaction.user.name,"nickname":self.f1.value,"roblox_username":self.f1.value,"pembayaran":"QRIS","created_at":time.time(),"last_activity":time.time(),"number":ticket_counter,"paket":paket_text,"promo":(self.promo.value if self.promo else ""),"harga_akhir":harga_akhir,"robux_jumlah":robux_jumlah_fix,"kategori":kategori,"referral_by":ref_by}
-        embed=discord.Embed(title=f"Ticket Baru - {self.jenis} - {interaction.user.name}",description=f"**Jenis:** {self.jenis}\n**{self.f1.label}:** {self.f1.value}\n**{self.f2.label}:** {self.f2.value}\n**{self.f3.label}:** {self.f3.value}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗",color=0xff69b4);embed.set_image(url=WELCOME_URL);await channel.send(interaction.user.mention+" Halo! Selamat datang di MIPI 
-    STORE!"🌸",embed=embed,view=CloseView());embed_qris=discord.Embed(title="Scan QRIS Disini",description="Silahkan scan QRIS ini ya 💗",color=0xff69b4);embed_qris.set_image(url=QRIS_URL);await channel.send(embed=embed_qris);await channel.send("STATUS ORDER - Owner only:",view=StatusView());await send_status_update(guild,ticket_counter,interaction.user.name,interaction.user.id,paket_text,"Ticket Baru Dibuat",0xff69b4);go_view=discord.ui.View();go_view.add_item(discord.ui.Button(label="BUKA TICKET SAYA",style=discord.ButtonStyle.link,url=f"https://discord.com/channels/{guild.id}/{channel.id}",emoji="🚀"));await interaction.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\n{channel.mention}",view=go_view,ephemeral=True)
+        embed=discord.Embed(title=f"Ticket Baru - {self.jenis} - {interaction.user.name}",description=f"**Jenis:** {self.jenis}\n**{self.f1.label}:** {self.f1.value}\n**{self.f2.label}:** {self.f2.value}\n**{self.f3.label}:** {self.f3.value}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗",color=0xff69b4);embed.set_image(url=WELCOME_URL);await channel.send(interaction.user.mention+" Halo! Selamat datang di MIPI STORE! 🌸",embed=embed,view=CloseView());embed_qris=discord.Embed(title="Scan QRIS Disini",description="Silahkan scan QRIS ini ya 💗",color=0xff69b4);embed_qris.set_image(url=QRIS_URL);await channel.send(embed=embed_qris);await channel.send("STATUS ORDER - Owner only:",view=StatusView());await send_status_update(guild,ticket_counter,interaction.user.name,interaction.user.id,paket_text,"Ticket Baru Dibuat",0xff69b4);go_view=discord.ui.View();go_view.add_item(discord.ui.Button(label="BUKA TICKET SAYA",style=discord.ButtonStyle.link,url=f"https://discord.com/channels/{guild.id}/{channel.id}",emoji="🚀"));await interaction.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\n{channel.mention}",view=go_view,ephemeral=True)
 class ButtonTicket(discord.ui.Button):
     def __init__(self,label,custom_id,row,emoji):
         super().__init__(label=label,style=discord.ButtonStyle.primary,custom_id=custom_id,row=row,emoji=emoji);self.jenis_map={"t_via_send":"VIA SEND","t_via_login":"VIA LOGIN","t_beli_limited":"BELI LIMITED","t_jual_limited":"JUAL LIMITED","t_pluss":"ROBLOX PLUSS","t_offsale":"BELI ITEM OFFSALE","t_rekber":"REKBER","t_other":"OTHER","t_komunitas":"VIA KOMUNITAS","t_beli_akun":"BELI AKUN"}
@@ -690,7 +701,6 @@ class TicketTypeView(discord.ui.View):
             await interaction.response.send_message("MIPI STORE UDAH TUTUP! 💤 Balik besok!",ephemeral=True);return False
         return True
 OrderView=TicketTypeView
-# ===== PART 3 - EDIT PRICELIST, PRODUK, PRICELIST DROPDOWN, COMMANDS =====
 class EditHargaModal(discord.ui.Modal, title="✏️ Edit Harga"):
     def __init__(self, kategori, nominal, harga_lama):
         super().__init__();self.kategori=kategori;self.nominal=nominal;self.harga_lama=harga_lama;self.harga_input=discord.ui.TextInput(label=f"Harga Baru {nominal} ({kategori})",placeholder=f"Lama: {harga_lama} - Contoh: 75000",required=True,max_length=10);self.add_item(self.harga_input)
@@ -721,7 +731,6 @@ class EditPricelistView(discord.ui.View):
     @discord.ui.select(placeholder="1️⃣ Pilih Kategori Dulu",custom_id="edit_pilih_kategori",options=[discord.SelectOption(label="💎 Via Username (Visend)",value="via_username",emoji="💎"),discord.SelectOption(label="🔑 Via Login (Vilog)",value="via_login",emoji="🔑"),discord.SelectOption(label="👥 Via Komunitas",value="via_komunitas",emoji="👥"),discord.SelectOption(label="⭐ Roblox Plus",value="plus",emoji="⭐"),discord.SelectOption(label="💠 Limited Item",value="limited",emoji="💠")],row=0)
     async def pilih_kategori(self, interaction: discord.Interaction, select: discord.ui.Select):
         self.kategori=select.values[0]
-        # Reset nominal default per kategori
         if self.kategori=="limited": self.nominal="8bit_royal_crown"
         elif self.kategori=="plus": self.nominal=1000
         else: self.nominal=500
@@ -803,7 +812,6 @@ class PanelProdukView(discord.ui.View):
     @discord.ui.button(label="🛍️ Lihat Katalog",style=discord.ButtonStyle.secondary,custom_id="produk_lihat",emoji="🛍️",row=1)
     async def lihat(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(embed=build_produk_embed(),ephemeral=True)
-# ===== PRICELIST ALA 1ST MARKET - DROPDOWN PRIVAT! =====
 class PricelistPublicView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.select(placeholder="Pilih Kategori Produk (Robux / Akun)  >",custom_id="mipi_pricelist_public",options=[discord.SelectOption(label="Robux Via Username (Visend)",value="via_username",emoji="💎",description="Lihat rincian harga Visend"),discord.SelectOption(label="Robux Via Login (Vilog)",value="via_login",emoji="🔑",description="Lihat rincian harga Vilog"),discord.SelectOption(label="Robux Via Komunitas",value="via_komunitas",emoji="👥",description="Lihat rincian harga Komunitas"),discord.SelectOption(label="Roblox Plus",value="plus",emoji="⭐",description="Lihat rincian harga Plus"),discord.SelectOption(label="Limited Item",value="limited",emoji="💠",description="Lihat rincian harga Limited"),discord.SelectOption(label="Rekber / Middleman",value="rekber",emoji="🛡️",description="Lihat fee Rekber")])
@@ -1006,7 +1014,9 @@ async def pending_cmd(interaction:discord.Interaction):
 async def add_saldo(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
     await safe_defer(interaction,ephemeral=True)
     if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
-    kat=kategori_alias(kategori);add_to_leaderboard(user.id,user.name,f"{robux} Robux",kategori=kat);await safe_followup(interaction,content=f"✅ {user.mention} +{robux} R$!",ephemeral=True)
+    kat=kategori_alias(kategori);add_to_leaderboard(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=get_harga(robux,kat));await safe_followup(interaction,content=f"✅ {user.mention} +{robux} R$!",ephemeral=True)
+    try: await update_top_sultan(interaction.guild)
+    except: pass
 @bot.tree.command(name="lihat-harga",description="Lihat harga pricelist")
 async def lihat_harga(interaction:discord.Interaction,kategori:str="via_username"):
     await safe_defer(interaction,ephemeral=True);kat=kategori_alias(kategori);await safe_followup(interaction,embed=build_pricelist_embed(kat),ephemeral=True)
@@ -1016,4 +1026,4 @@ async def pricelist_rekber(interaction:discord.Interaction):
 @bot.tree.command(name="help-mipi",description="Lihat semua command")
 async def help_mipi(interaction:discord.Interaction):
     await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V5 FINAL**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/pending`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V5:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway`";await safe_followup(interaction,content=txt,ephemeral=True)
-bot.run(os.getenv("DISCORD_TOKEN"))
+bot.run(os.getenv("DISCORD_TOKEN"))        
