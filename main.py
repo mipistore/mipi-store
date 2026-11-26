@@ -195,7 +195,7 @@ def build_produk_embed():
             stok_txt="🟢 READY (Unlimited)" if p.get("stok",0)>1000 else f"{'🟢 READY' if p.get('stok',0)>0 else '🔴 HABIS'} ({p.get('stok',0)} stok)"
             desc+=f"{p.get('emoji','📦')} **{p.get('nama','Produk')}**\n└ Kode: `{kode}` | Harga: {format_rp(p.get('harga',0))} | {stok_txt}\n└ {p.get('deskripsi','')}\n\n"
     desc+="━━━━━━━━━━━━━━━━━━\n🛍️ Order: Pencet tombol di #open-ticket\n💗 Mipi Store - Rafi Store";e=discord.Embed(title="🛍️ KATALOG PRODUK - MIPI STORE",description=desc,color=0xff69b4);e.set_image(url=WELCOME_URL);e.set_footer(text="MIPI STORE • Katalog Produk");return e
-# ===== LEADERBOARD DIPISAH TOTAL - SULTAN VS BULANAN =====
+# ===== LEADERBOARD DIPISAH TOTAL + 3 ADD SALDO =====
 LEADERBOARD_SULTAN_FILE="leaderboard_sultan.json"
 LEADERBOARD_BULANAN_FILE="leaderboard_bulanan.json"
 def load_leaderboard_sultan(): return _load(LEADERBOARD_SULTAN_FILE,{})
@@ -204,24 +204,34 @@ def load_leaderboard_bulanan(): return _load(LEADERBOARD_BULANAN_FILE,{})
 def save_leaderboard_bulanan(d): _save(LEADERBOARD_BULANAN_FILE,d)
 def load_leaderboard(): return load_leaderboard_sultan()
 def save_leaderboard(d): save_leaderboard_sultan(d)
-def add_to_leaderboard(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
+def _hitung_saldo(paket_text,kategori,robux_jumlah,harga_akhir):
+    if robux_jumlah is not None:
+        jumlah=int(robux_jumlah);harga=int(harga_akhir) if harga_akhir else get_harga(jumlah,kategori)
+    else:
+        m=re.search(r'(\d+)',str(paket_text).replace('.','').replace(',',''))
+        if not m: return 0,0
+        jumlah=int(m.group(1));harga=get_harga(jumlah,kategori)
+    return jumlah,harga
+def add_to_sultan_only(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
     try:
-        if robux_jumlah is not None:
-            jumlah=int(robux_jumlah);harga=int(harga_akhir) if harga_akhir else get_harga(jumlah,kategori)
-        else:
-            m=re.search(r'(\d+)',str(paket_text).replace('.','').replace(',',''))
-            if not m: return
-            jumlah=int(m.group(1));harga=get_harga(jumlah,kategori)
+        jumlah,harga=_hitung_saldo(paket_text,kategori,robux_jumlah,harga_akhir)
         if jumlah<=0 and harga<=0: return
-        uid=str(user_id);bulan=datetime.now().strftime("%Y-%m")
-        data_s=load_leaderboard_sultan()
+        uid=str(user_id);data_s=load_leaderboard_sultan()
         if uid not in data_s: data_s[uid]={"username":username,"total":0,"transaksi":0,"total_rp":0}
         data_s[uid]["username"]=username;data_s[uid]["total"]+=jumlah;data_s[uid]["transaksi"]+=1;data_s[uid]["total_rp"]+=harga;save_leaderboard_sultan(data_s)
-        data_b=load_leaderboard_bulanan()
+    except Exception as e: print(f"add sultan error: {e}")
+def add_to_bulanan_only(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
+    try:
+        jumlah,harga=_hitung_saldo(paket_text,kategori,robux_jumlah,harga_akhir)
+        if jumlah<=0 and harga<=0: return
+        uid=str(user_id);bulan=datetime.now().strftime("%Y-%m");data_b=load_leaderboard_bulanan()
         if bulan not in data_b: data_b[bulan]={}
         if uid not in data_b[bulan]: data_b[bulan][uid]={"username":username,"total":0,"transaksi":0,"total_rp":0}
         data_b[bulan][uid]["username"]=username;data_b[bulan][uid]["total"]+=jumlah;data_b[bulan][uid]["transaksi"]+=1;data_b[bulan][uid]["total_rp"]+=harga;save_leaderboard_bulanan(data_b)
-    except Exception as e: print(f"add leaderboard error: {e}")
+    except Exception as e: print(f"add bulanan error: {e}")
+def add_to_leaderboard(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
+    add_to_sultan_only(user_id,username,paket_text,kategori,robux_jumlah,harga_akhir)
+    add_to_bulanan_only(user_id,username,paket_text,kategori,robux_jumlah,harga_akhir)
 def get_total_belanja(user_id):
     try:
         data=load_leaderboard_sultan();uid=str(user_id)
@@ -317,7 +327,6 @@ def start_tebak_harga():
         fake=int(harga*random.uniform(0.7,1.4)/500)*500
         if fake not in pilihan and fake>0: pilihan.append(fake)
     random.shuffle(pilihan);return nominal,harga,pilihan
-# ===== TOP SULTAN ELEGAN LUXURY GOLD vs TOP BULANAN ELEGAN PINK =====
 def get_top_sultan_channel(guild):
     for ch in guild.text_channels:
         if "top-sultan" in ch.name.lower(): return ch
@@ -573,7 +582,7 @@ async def do_auto_close(guild,channel,data,reason="auto-closed",admin_user=None)
         try: await channel.delete()
         except: pass
     except Exception as e: print(f"do_auto_close error: {e}")
-@tasks.loop(minutes=1)
+        @tasks.loop(minutes=1)
 async def check_inactive():
     try:
         now=time.time()
@@ -659,7 +668,7 @@ class SaldoView(discord.ui.View):
     async def cek_saldo(self,interaction:discord.Interaction,button:discord.ui.Button):
         tr,tro,tt=get_total_belanja(interaction.user.id);lvl=get_level(tr);nxt,sisa=get_next_level(tr);poin=get_poin(interaction.user.id);embed=discord.Embed(color=0xff1493);embed.description=f"INFORMASI SALDO\n\nHalo {interaction.user.mention}\n\n🏆 Level: {lvl}\n➡️ Next: {nxt} (kurang {format_rp(sisa)})\n\nTotal Belanja: {format_rp(tr)}\nTotal Robux: {tro} R$\nTotal Transaksi: {tt}x\n🎁 Poin: {poin} poin";await interaction.response.send_message(embed=embed,ephemeral=True)
 def build_ticket_panel_baru_embed():
-    e=discord.Embed(title="🎫 Mipi Store - Ticket Order",description="💎 **Robux Via Username** - Beli Robux Via Username\n🔑 **Robux Vlog** - Beli Robux Via Login\n💠 **Beli Limited Item** - Beli Item Via Trade\n💰 **Jual Limited Item** - Cashout\n🎁 **Beli Item Offsale** - Via Redeem Code\n⭐ **Beli Roblox Plus** - Plus Monthly\n🛡️ **Rekber/MM** - Rekber, Akun, Jasa\n🐱 **Other/Nanya** - Pertanyaan\n👥 **Via Komunitas** - Via Group\n💃 **Beli Akun** - Beli Akun Sultan\n\n✨ **V6:** Top Sultan 👑 + Top Bulanan 🌸 Dipisah!\nMipi Store 💗",color=0x2B2D31);e.set_image(url=WELCOME_URL);e.set_footer(text="Mipi Store - Pilih tombol di bawah!");return e
+    e=discord.Embed(title="🎫 Mipi Store - Ticket Order",description="💎 **Robux Via Username** - Beli Robux Via Username\n🔑 **Robux Vlog** - Beli Robux Via Login\n💠 **Beli Limited Item** - Beli Item Via Trade\n💰 **Jual Limited Item** - Cashout\n🎁 **Beli Item Offsale** - Via Redeem Code\n⭐ **Beli Roblox Plus** - Plus Monthly\n🛡️ **Rekber/MM** - Rekber, Akun, Jasa\n🐱 **Other/Nanya** - Pertanyaan\n👥 **Via Komunitas** - Via Group\n💃 **Beli Akun** - Beli Akun Sultan\n\n✨ **V7:** 3x Add Saldo! Sultan 👑 / Bulanan 🌸 / Dua-duanya!\nMipi Store 💗",color=0x2B2D31);e.set_image(url=WELCOME_URL);e.set_footer(text="Mipi Store - Pilih tombol di bawah!");return e
 class OrderModalBaru(discord.ui.Modal):
     def __init__(self,jenis:str):
         self.jenis=jenis
@@ -903,7 +912,7 @@ async def on_message(message):
     except: pass
 @bot.event
 async def on_ready():
-    print(f"Login {bot.user} - MIPI STORE V6 ELEGAN!")
+    print(f"Login {bot.user} - MIPI STORE V7 3x ADD SALDO!")
     bot.add_view(OrderView());bot.add_view(TicketTypeView());bot.add_view(CloseView());bot.add_view(StatusView());bot.add_view(RatingView(0));bot.add_view(SaldoView());bot.add_view(GiveawayView("dummy"));bot.add_view(EditPricelistView());bot.add_view(PanelProdukView());bot.add_view(PricelistPublicView())
     for oid in load_pending().keys():
         try: bot.add_view(KonfirmasiSaldoView(oid))
@@ -1059,11 +1068,25 @@ async def pending_cmd(interaction:discord.Interaction):
     txt="⏳ **PENDING SALDO**\n\n"
     for oid,d in data.items(): txt+=f"**{oid}** — <@{d['user_id']}> — {d['paket']} — {d['robux']} R$ — {format_rp(d['harga'])}\n"
     await safe_followup(interaction,content=txt,ephemeral=True)
-@bot.tree.command(name="add-saldo",description="Tambah saldo manual (Admin)")
+@bot.tree.command(name="add-saldo-sultan",description="Tambah saldo ke TOP SULTAN doang 👑 (Admin)")
+async def add_saldo_sultan(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_sultan_only(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(interaction,content=f"👑 **+{robux} R$** ke **TOP SULTAN** doang!\n{user.mention} • {format_rp(harga)}\nTop Bulanan gak berubah!",ephemeral=True)
+    try: await update_top_sultan(interaction.guild)
+    except: pass
+@bot.tree.command(name="add-saldo-bulanan",description="Tambah saldo ke TOP BULANAN doang 🌸 (Admin)")
+async def add_saldo_bulanan(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_bulanan_only(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(interaction,content=f"🌸 **+{robux} R$** ke **TOP BULANAN** doang!\n{user.mention} • {format_rp(harga)}\nTop Sultan gak berubah!",ephemeral=True)
+    try: await update_top_bulanan(interaction.guild)
+    except: pass
+@bot.tree.command(name="add-saldo",description="Tambah saldo ke DUA-DUANYA 👑+🌸 (Admin)")
 async def add_saldo(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
     await safe_defer(interaction,ephemeral=True)
     if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
-    kat=kategori_alias(kategori);add_to_leaderboard(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=get_harga(robux,kat));await safe_followup(interaction,content=f"✅ {user.mention} +{robux} R$!",ephemeral=True)
+    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_leaderboard(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(interaction,content=f"✅ **+{robux} R$** ke **DUA-DUANYA!**\n{user.mention} • {format_rp(harga)}\n👑 Top Sultan + 🌸 Top Bulanan ke-update!",ephemeral=True)
     try: await update_all_top(interaction.guild)
     except: pass
 @bot.tree.command(name="lihat-harga",description="Lihat harga pricelist")
@@ -1074,5 +1097,5 @@ async def pricelist_rekber(interaction:discord.Interaction):
     await safe_defer(interaction,ephemeral=True);await interaction.channel.send(embed=build_rekber_embed(),view=RekberView(guild_id=interaction.guild.id));await safe_followup(interaction,content="✅ Pricelist Rekber dikirim!",ephemeral=True)
 @bot.tree.command(name="help-mipi",description="Lihat semua command")
 async def help_mipi(interaction:discord.Interaction):
-    await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V6 ELEGAN**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V6:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(interaction,content=txt,ephemeral=True)
+    await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V7**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**ADD SALDO:** `/add-saldo` `/add-saldo-sultan` `/add-saldo-bulanan`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V7:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(interaction,content=txt,ephemeral=True)
 bot.run(os.getenv("DISCORD_TOKEN"))
