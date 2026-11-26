@@ -17,25 +17,40 @@ TOP_BULANAN_IMAGE="https://raw.githubusercontent.com/mipistore/mipi-store/main/9
 ticket_data={};ticket_counter=0;user_ratings={};user_last_ticket={};STORE_STATUS="open";OPEN_CLOSE_CHANNEL_ID=1569135504262299689;OPEN_TICKET_CHANNEL_ID=1569711323653083279
 REFERRAL_RATE=0.05;DAILY_POIN=10;LEVELS=[("🌱 Newbie",0),("💎 Regular",100000),("⭐ VIP",500000),("👑 Sultan",1000000),("🔥 LEGEND",5000000)]
 
+# ===== FIX DID NOT RESPOND - DEFER ANTI GAGAL =====
 async def safe_defer(interaction,ephemeral=False):
     try:
-        if not interaction.response.is_done(): await interaction.response.defer(ephemeral=ephemeral);return True
-    except: return False
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=ephemeral)
+            return True
+        return True
+    except Exception as e:
+        print(f"defer fail: {e}")
+        return False
 async def safe_followup(interaction,content=None,embed=None,embeds=None,view=None,ephemeral=False):
     try:
-        if interaction.response.is_done(): return await interaction.followup.send(content=content,embed=embed,embeds=embeds,view=view,ephemeral=ephemeral)
-        else: return await interaction.response.send_message(content=content,embed=embed,embeds=embeds,view=view,ephemeral=ephemeral)
-    except:
-        try: return await interaction.channel.send(content=content,embed=embed,embeds=embeds,view=view)
-        except: return None
+        if interaction.response.is_done():
+            return await interaction.followup.send(content=content,embed=embed,embeds=embeds,view=view,ephemeral=ephemeral)
+        else:
+            return await interaction.response.send_message(content=content,embed=embed,embeds=embeds,view=view,ephemeral=ephemeral)
+    except Exception as e:
+        print(f"followup fail: {e}")
+        try:
+            return await interaction.channel.send(content=content,embed=embed,embeds=embeds,view=view)
+        except Exception as e2:
+            print(f"channel send fail: {e2}")
+            return None
 
 @bot.tree.error
 async def on_app_command_error(interaction,error):
     print(f"SLASH ERROR {interaction.command.name if interaction.command else '?'}: {error}")
+    traceback.print_exc()
     try:
         msg=f"❌ Error: {str(error)[:400]}"
-        if interaction.response.is_done(): await interaction.followup.send(msg,ephemeral=True)
-        else: await interaction.response.send_message(msg,ephemeral=True)
+        if interaction.response.is_done():
+            await interaction.followup.send(msg,ephemeral=True)
+        else:
+            await interaction.response.send_message(msg,ephemeral=True)
     except: pass
 
 def _load(fn,default):
@@ -89,11 +104,10 @@ def load_pricelist(kategori="via_username"):
     return DEFAULT_PRICELIST_PER_KATEGORI.get(kategori,DEFAULT_PRICELIST).copy()
 def save_pricelist(data,kategori="via_username"):
     kategori=kategori_alias(kategori);raw=_load_all_pricelist_raw()
-    if not raw or list(raw.keys())[0].isdigit(): raw={}
+    if not raw or len(raw)==0 or list(raw.keys())[0].isdigit(): raw={}
     for kat in ["via_username","via_login","via_komunitas","plus","limited"]:
         if kat not in raw:
-            if kat=="limited": raw[kat]={str(k):v for k,v in DEFAULT_PRICELIST_PER_KATEGORI[kat].items()}
-            else: raw[kat]={str(k):v for k,v in DEFAULT_PRICELIST_PER_KATEGORI[kat].items()}
+            raw[kat]={str(k):v for k,v in DEFAULT_PRICELIST_PER_KATEGORI[kat].items()}
     if kategori=="limited": raw[kategori]={str(k):int(v) for k,v in data.items()}
     else: raw[kategori]={str(k):int(v) for k,v in data.items()}
     with open(PRICELIST_FILE,"w") as f: json.dump(raw,f,indent=2)
@@ -101,7 +115,8 @@ def save_pricelist(data,kategori="via_username"):
 def get_harga(robux,kategori="via_username"):
     kategori=kategori_alias(kategori)
     if kategori=="limited":
-        d=load_pricelist("limited"); return int(d.get(str(robux), LIMITED_ITEMS.get(str(robux),{}).get("harga",0)))
+        d=load_pricelist("limited")
+        return int(d.get(str(robux), LIMITED_ITEMS.get(str(robux),{}).get("harga",0)))
     data=load_pricelist(kategori)
     try: robux=int(robux)
     except: return 0
@@ -166,12 +181,14 @@ def build_pricelist_embed(kategori="via_username"):
     info=CATEGORY_PRICELIST.get(kategori,CATEGORY_PRICELIST["via_username"])
     e=discord.Embed(title=info["title"],description=info["desc"]+"\n\n"+build_pricelist_text(kategori),color=0xff69b4)
     e.set_image(url=info["image"]);e.set_footer(text="Mipi Store - Rafi Store | Harga bisa berubah sewaktu-waktu");return e
-def build_all_pricelist_embeds(): return [build_pricelist_embed(k) for k in ["via_username","via_login","via_komunitas","plus","limited"]]
 def build_rekber_embed():
     e=discord.Embed(title="🛡️ Middleman / Rekber Service by MIPI STORE",description=("✨ Transaksi aman, tanpa takut ketipu!\n\n━━━━━━━━━━━━━━━━━━\n💰 Daftar Fee Middleman\n━━━━━━━━━━━━━━━━━━\n🌸 Rp 1.000 — Rp 9.000 → Fee **Rp 1.500**\n💠 Rp 10.000 — Rp 49.000 → Fee **Rp 1.500**\n💠 Rp 50.000 — Rp 99.000 → Fee **Rp 1.500**\n✨ Rp 100.000 — Rp 199.000 → Fee **Rp 2.500**\n✨ Rp 200.000 — Rp 499.000 → Fee **Rp 4.000**\n👑 Rp 500.000 — Rp 1.000.000 → Fee **Rp 7.000**\n👑 Di atas Rp 1.000.000 → Fee **Rp 10.000**\n\n━━━━━━━━━━━━━━━━━━\n🛍️ Cara Order\n━━━━━━━━━━━━━━━━━━\n"+f"1️⃣ Klik tombol 🎫 Buat Ticket Middleman di bawah / Open Ticket di <#{OPEN_TICKET_CHANNEL_ID}>\n2️⃣ Isi Buyer, Seller, Jenis Barang, Harga, dan Fee Ditanggung\n3️⃣ Tunggu admin verifikasi & proses\n4️⃣ Deal! 💗\n\n💗 Mipi Store — Rafi Store"),color=0xff69b4);e.set_image(url=WELCOME_URL);e.set_footer(text="MIPI STORE • Rekber / Middleman • 100% Aman");return e
 class RekberView(discord.ui.View):
     def __init__(self,guild_id=None):
-        super().__init__(timeout=None);url=f"https://discord.com/channels/{guild_id}/{OPEN_TICKET_CHANNEL_ID}" if guild_id else f"https://discord.com/channels/@me/{OPEN_TICKET_CHANNEL_ID}";self.add_item(discord.ui.Button(label="🎫 Buat Ticket Middleman",style=discord.ButtonStyle.link,url=url,emoji="🎫"));self.add_item(discord.ui.Button(label="💬 Open Ticket",style=discord.ButtonStyle.link,url=url,emoji="💬"))
+        super().__init__(timeout=None)
+        url=f"https://discord.com/channels/{guild_id}/{OPEN_TICKET_CHANNEL_ID}" if guild_id else f"https://discord.com/channels/@me/{OPEN_TICKET_CHANNEL_ID}"
+        self.add_item(discord.ui.Button(label="🎫 Buat Ticket Middleman",style=discord.ButtonStyle.link,url=url,emoji="🎫"))
+        self.add_item(discord.ui.Button(label="💬 Open Ticket",style=discord.ButtonStyle.link,url=url,emoji="💬"))
 def jenis_to_kategori(jenis):
     j=str(jenis).upper()
     if "VIA LOGIN" in j: return "via_login"
@@ -344,18 +361,22 @@ def build_top_sultan_embed_semua():
         if not s:
             e.add_field(name="╭  Belum Ada Sultan",value="> Jadilah Sultan pertama di MIPI STORE!\n> Order pertama kamu akan tercatat di sini selamanya.",inline=False)
         else:
-            top1=s[0][1];e.add_field(name="👑  KING OF MIPI STORE",value=f"<@{s[0][0]}>  •  **{top1.get('username','User')}**\n💰 {format_rp(top1.get('total_rp',0))}  •  {top1.get('total',0):,} R$  •  {top1.get('transaksi',0)}x Order".replace(",","."),inline=False)
+            top1=s[0][1]
+            e.add_field(name="👑  KING OF MIPI STORE",value=f"<@{s[0][0]}>  •  **{top1.get('username','User')}**\n💰 {format_rp(top1.get('total_rp',0))}  •  {top1.get('total',0):,} R$  •  {top1.get('transaksi',0)}x Order".replace(",","."),inline=False)
             lines=""
             medals=["🥇","🥈","🥉"]
             for i,(uid,info) in enumerate(s):
                 medal=medals[i] if i<3 else f"`{i+1}.`"
-                bar="█"*max(1,int(info.get('total_rp',0)/max(1,s[0][1].get('total_rp',1))*10))
+                max_rp=max(1,s[0][1].get('total_rp',1))
+                bar="█"*max(1,int(info.get('total_rp',0)/max_rp*10))
                 lines+=f"{medal} <@{uid}>\n╰  {format_rp(info.get('total_rp',0))}  •  {info.get('total',0):,} R$  •  {info.get('transaksi',0)}x  •  {bar}\n".replace(",",".")
             e.add_field(name="🏆  TOP 10 — ALL TIME",value=lines,inline=False)
         e.add_field(name="📊  TOTAL ALL TIME",value=f"💰 **{format_rp(total_all)}**\n🧾 **{total_tr}** Transaksi  •  👥 **{len(data)}** Sultan",inline=True)
         e.add_field(name="🎖️  LEVEL TERTINGGI",value="🔥 LEGEND — Rp 5.000.000+\n👑 SULTAN — Rp 1.000.000+",inline=True)
         e.set_image(url=TOP_SULTAN_IMAGE);e.set_footer(text="MIPI STORE • Top Sultan • All Time • Tidak Pernah Reset");e.timestamp=datetime.now();return e
-    except: return discord.Embed(title="Top Sultan",description="Error",color=0xff0000)
+    except Exception as e:
+        print(f"sultan embed error: {e}")
+        return discord.Embed(title="Top Sultan",description="Error",color=0xff0000)
 def build_top_sultan_embed_bulanan():
     try:
         data=load_leaderboard_bulanan();bulan_ini=datetime.now().strftime("%Y-%m");users=data.get(bulan_ini,{})
@@ -365,18 +386,22 @@ def build_top_sultan_embed_bulanan():
         if not s:
             e.add_field(name="🌷  Belum Ada Pembeli Bulan Ini",value="> Yuk jadi yang pertama!\n> Order hari ini langsung masuk Top Bulanan + Top Sultan!",inline=False)
         else:
-            top1=s[0][1];e.add_field(name="🌸  QUEEN / KING BULAN INI",value=f"<@{s[0][0]}>  •  **{top1.get('username','User')}**\n💗 {format_rp(top1.get('total_rp',0))}  •  {top1.get('total',0):,} R$  •  {top1.get('transaksi',0)}x Order".replace(",","."),inline=False)
+            top1=s[0][1]
+            e.add_field(name="🌸  QUEEN / KING BULAN INI",value=f"<@{s[0][0]}>  •  **{top1.get('username','User')}**\n💗 {format_rp(top1.get('total_rp',0))}  •  {top1.get('total',0):,} R$  •  {top1.get('transaksi',0)}x Order".replace(",","."),inline=False)
             lines=""
             icons=["🌸","🌷","🌺","💗","💖","✨","🎀","🌼","🌹","💐"]
             for i,(uid,info) in enumerate(s):
                 icon=icons[i] if i<10 else "🌸"
-                pct=int(info.get('total_rp',0)/max(1,s[0][1].get('total_rp',1))*100)
+                max_rp=max(1,s[0][1].get('total_rp',1))
+                pct=int(info.get('total_rp',0)/max_rp*100)
                 lines+=f"{icon} **#{i+1}** <@{uid}> — {info.get('username','User')}\n╰  💗 {format_rp(info.get('total_rp',0))}  •  {info.get('total',0):,} R$  •  {info.get('transaksi',0)}x  •  {pct}%\n".replace(",",".")
             e.add_field(name=f"✨  TOP 10 — {nama_bulan}",value=lines,inline=False)
         e.add_field(name="💗  TOTAL BULAN INI",value=f"**{format_rp(total_bulan)}**\n🧾 **{total_tr}** Transaksi  •  👥 **{len(users)}** Pembeli",inline=True)
         e.add_field(name="📅  PERIODE",value=f"**{nama_bulan}**\nReset: Tanggal 1\nSultan aman, gak kehapus!",inline=True)
         e.set_image(url=TOP_BULANAN_IMAGE);e.set_footer(text="MIPI STORE • Top Bulanan • Reset Tiap Tanggal 1");e.timestamp=datetime.now();return e
-    except: return discord.Embed(title="Top Bulanan",description="Error",color=0xff0000)
+    except Exception as e:
+        print(f"bulanan embed error: {e}")
+        return discord.Embed(title="Top Bulanan",description="Error",color=0xff0000)
 def build_top_sultan_embed(): return build_top_sultan_embed_semua()
 async def update_top_sultan(guild):
     try:
@@ -384,7 +409,8 @@ async def update_top_sultan(guild):
         if not ch: return
         embed=build_top_sultan_embed_semua()
         async for msg in ch.history(limit=20):
-            if msg.author==guild.me and msg.embeds and "TOP SULTAN" in str(msg.embeds[0].title): await msg.edit(embed=embed);return
+            if msg.author==guild.me and msg.embeds and "TOP SULTAN" in str(msg.embeds[0].title):
+                await msg.edit(embed=embed);return
         await ch.send(embed=embed)
     except Exception as e: print(f"update top sultan error: {e}")
 async def update_top_bulanan(guild):
@@ -393,12 +419,13 @@ async def update_top_bulanan(guild):
         if not ch: return
         embed=build_top_sultan_embed_bulanan()
         async for msg in ch.history(limit=20):
-            if msg.author==guild.me and msg.embeds and "TOP BULANAN" in str(msg.embeds[0].title): await msg.edit(embed=embed);return
+            if msg.author==guild.me and msg.embeds and "TOP BULANAN" in str(msg.embeds[0].title):
+                await msg.edit(embed=embed);return
         await ch.send(embed=embed)
     except Exception as e: print(f"update top bulanan error: {e}")
 async def update_all_top(guild):
     await update_top_sultan(guild);await update_top_bulanan(guild)
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=5)
 async def auto_update_top_sultan():
     for guild in bot.guilds:
         try: await update_all_top(guild)
@@ -435,10 +462,14 @@ class KonfirmasiSaldoView(discord.ui.View):
         super().__init__(timeout=None);self.order_id=order_id
     @discord.ui.button(label="✅ Konfirmasi Masuk Saldo",style=discord.ButtonStyle.success,custom_id="saldo_confirm_btn")
     async def confirm_btn(self,interaction:discord.Interaction,button:discord.ui.Button):
-        if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.response.send_message("❌ Hanya Admin / Owner!",ephemeral=True);return
+        if not is_admin_or_owner(interaction.user,interaction.guild):
+            await interaction.response.send_message("❌ Hanya Admin / Owner!",ephemeral=True);return
         pend=load_pending()
-        if self.order_id not in pend: await interaction.response.send_message("❌ Udah dikonfirmasi / ditolak!",ephemeral=True);return
-        d=pend[self.order_id];add_to_leaderboard(int(d["user_id"]),d["username"],d["paket"],kategori=d.get("kategori","via_username"),robux_jumlah=d.get("robux"),harga_akhir=d.get("harga"));del pend[self.order_id];save_pending(pend)
+        if self.order_id not in pend:
+            await interaction.response.send_message("❌ Udah dikonfirmasi / ditolak!",ephemeral=True);return
+        d=pend[self.order_id]
+        add_to_leaderboard(int(d["user_id"]),d["username"],d["paket"],kategori=d.get("kategori","via_username"),robux_jumlah=d.get("robux"),harga_akhir=d.get("harga"))
+        del pend[self.order_id];save_pending(pend)
         komisi_txt=""
         if d.get("referral_by"):
             komisi=add_referral_komisi(d["referral_by"],d["harga"],d["username"]);komisi_txt=f"\n💸 Referral: <@{d['referral_by']}> dapet {format_rp(komisi)} (5%)!"
@@ -453,9 +484,11 @@ class KonfirmasiSaldoView(discord.ui.View):
         except: pass
     @discord.ui.button(label="❌ Tolak / Order Palsu",style=discord.ButtonStyle.danger,custom_id="saldo_reject_btn")
     async def reject_btn(self,interaction:discord.Interaction,button:discord.ui.Button):
-        if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.response.send_message("❌ Hanya Admin / Owner!",ephemeral=True);return
+        if not is_admin_or_owner(interaction.user,interaction.guild):
+            await interaction.response.send_message("❌ Hanya Admin / Owner!",ephemeral=True);return
         pend=load_pending()
-        if self.order_id not in pend: await interaction.response.send_message("❌ Udah diproses!",ephemeral=True);return
+        if self.order_id not in pend:
+            await interaction.response.send_message("❌ Udah diproses!",ephemeral=True);return
         d=pend[self.order_id];del pend[self.order_id];save_pending(pend);await interaction.response.send_message(f"❌ Order {self.order_id} DITOLAK!",ephemeral=False)
         for item in self.children: item.disabled=True
         try: await interaction.message.edit(view=self)
@@ -480,21 +513,25 @@ class GiveawayView(discord.ui.View):
     @discord.ui.button(label="JOIN GIVEAWAY",style=discord.ButtonStyle.success,custom_id="join_giveaway",emoji="🎉")
     async def join_btn(self,interaction:discord.Interaction,button:discord.ui.Button):
         data=giveaway_data.get(self.giveaway_id)
-        if not data or data["ended"]: await interaction.response.send_message("Giveaway berakhir!",ephemeral=True);return
-        if interaction.user.id in data["peserta"]: await interaction.response.send_message("Udah join!",ephemeral=True);return
+        if not data or data["ended"]:
+            await interaction.response.send_message("Giveaway berakhir!",ephemeral=True);return
+        if interaction.user.id in data["peserta"]:
+            await interaction.response.send_message("Udah join!",ephemeral=True);return
         data["peserta"].append(interaction.user.id);await interaction.response.send_message("Berhasil join!",ephemeral=True)
 async def end_giveaway(guild,channel_id,message_id,giveaway_id):
     try:
         data=giveaway_data.get(giveaway_id)
         if not data or data["ended"]: return
-        data["ended"]=True;channel=guild.get_channel(channel_id)
+        data["ended"]=True
+        channel=guild.get_channel(channel_id)
         if not channel: return
-        try: msg=await channel.fetch_message(message_id)
-        except: msg=None
         if len(data["peserta"])==0:
             await channel.send("Giveaway berakhir, gak ada yang join!");return
-        winners=random.sample(data["peserta"],min(data["pemenang"],len(data["peserta"])));wm=", ".join([f"<@{w}>" for w in winners]);await channel.send(f"GIVEAWAY BERAKHIR!\nHadiah: {data['hadiah']}\nPemenang: {wm}")
-    except: pass
+        jumlah_pemenang=min(data["pemenang"], len(data["peserta"]))
+        winners=random.sample(data["peserta"], jumlah_pemenang)
+        wm=", ".join([f"<@{w}>" for w in winners])
+        await channel.send(f"GIVEAWAY BERAKHIR!\nHadiah: {data['hadiah']}\nPemenang: {wm}")
+    except Exception as e: print(f"end giveaway error: {e}")
 BANNED_WORDS=["wts robux","jual robux","sell robux","jual rb","wts rb","jual limited","wts limited","sell limited","jual robux murah","robux murah","top up robux"]
 SCAM_LINKS=["discord.gg/","bit.ly/","tinyurl.com/","free-robux","robux-free"]
 def is_banned_selling(text):
@@ -531,10 +568,6 @@ def get_omset_channel(guild):
     for ch in guild.text_channels:
         if "omset" in ch.name.lower() or "rekap" in ch.name.lower() or "history" in ch.name.lower(): return ch
     return get_history_channel(guild)
-def make_html_transcript(number,messages,username,paket,duration):
-    rows=""
-    for m in messages: rows+="<div>"+html.escape(str(m["author"]))+" | "+m["time"]+"<br>"+html.escape(m["content"] or "(gambar)")+"</div>"
-    return f"<html><body><h2>Ticket #{number} - {html.escape(username)} - {html.escape(paket)}</h2>{rows}</body></html>"
 async def send_status_update(guild,number,username,user_id,paket,status_text,color):
     try:
         ch=get_status_channel(guild)
@@ -564,7 +597,7 @@ def get_statistik():
     except: return {"hari_rp":0,"hari_tr":0,"bulan_rp":0,"bulan_tr":0,"all_rp":0,"all_tr":0}
 async def do_auto_close(guild,channel,data,reason="auto-closed",admin_user=None):
     try:
-        number=data["number"];user_id=data["user_id"];paket=data.get("paket","ORDER ROBUX");duration=int((time.time()-data["created_at"])//60) or 1
+        number=data["number"];user_id=data["user_id"];paket=data.get("paket","ORDER ROBUX")
         user_last_ticket[user_id]={"number":number,"paket":paket,"ticket_name":channel.name if channel else "","seller_id":guild.owner_id}
         try: await send_history_log(guild,channel,data,admin_user)
         except: pass
@@ -576,14 +609,15 @@ async def do_auto_close(guild,channel,data,reason="auto-closed",admin_user=None)
             if order_id:
                 ch_pending=get_history_channel(guild) or get_status_channel(guild)
                 if ch_pending:
-                    jumlah_tmp,harga_tmp=hitung_harga(paket,data.get("kategori","via_username"),robux_jumlah=data.get("robux_jumlah"),harga_akhir=data.get("harga_akhir"));embed_p=discord.Embed(title=f"⏳ PENDING SALDO - {order_id}",description=f"Buyer: <@{user_id}>\nPaket: {paket}\nRobux: {jumlah_tmp} R$\nHarga: {harga_tmp}\nTicket: #{number}\n\nAdmin pencet ✅ dulu baru masuk saldo!",color=0xfee75c);await ch_pending.send(embed=embed_p,view=KonfirmasiSaldoView(order_id))
-        except: pass
+                    jumlah_tmp,harga_tmp=hitung_harga(paket,data.get("kategori","via_username"),robux_jumlah=data.get("robux_jumlah"),harga_akhir=data.get("harga_akhir"))
+                    embed_p=discord.Embed(title=f"⏳ PENDING SALDO - {order_id}",description=f"Buyer: <@{user_id}>\nPaket: {paket}\nRobux: {jumlah_tmp} R$\nHarga: {harga_tmp}\nTicket: #{number}\n\nAdmin pencet ✅ dulu baru masuk saldo!",color=0xfee75c)
+                    await ch_pending.send(embed=embed_p,view=KonfirmasiSaldoView(order_id))
+        except Exception as e: print(f"pending error: {e}")
         if channel.id in ticket_data: del ticket_data[channel.id]
         try: await channel.delete()
         except: pass
     except Exception as e: print(f"do_auto_close error: {e}")
-
-    @tasks.loop(minutes=1)
+        @tasks.loop(minutes=1)
 async def check_inactive():
     try:
         now=time.time()
@@ -593,7 +627,7 @@ async def check_inactive():
                 ch=bot.get_channel(channel_id)
                 if not ch: del ticket_data[channel_id];continue
                 await do_auto_close(ch.guild,ch,data)
-    except: pass
+    except Exception as e: print(f"check inactive error: {e}")
 @tasks.loop(minutes=60)
 async def auto_rekap_omset():
     try:
@@ -603,7 +637,7 @@ async def auto_rekap_omset():
             s=get_statistik();ch=get_omset_channel(guild)
             if not ch: continue
             e=discord.Embed(title="📊 REKAP OMSET HARIAN",description=f"📅 {now.strftime('%d %B %Y')}\n\n💰 Bulan Ini: {format_rp(s['bulan_rp'])} ({s['bulan_tr']} transaksi)\n👑 All Time: {format_rp(s['all_rp'])} ({s['all_tr']} transaksi)",color=0xff69b4);await ch.send(embed=e)
-    except: pass
+    except Exception as e: print(f"rekap error: {e}")
 class RatingView(discord.ui.View):
     def __init__(self,ticket_number):
         super().__init__(timeout=None);self.ticket_number=ticket_number
@@ -639,37 +673,48 @@ class StatusView(discord.ui.View):
     @discord.ui.button(label="⏳ Menunggu Pembayaran",style=discord.ButtonStyle.secondary,custom_id="status_waiting")
     async def waiting(self,interaction:discord.Interaction,button:discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.followup.send("Hanya Admin!",ephemeral=True);return
+        if not is_admin_or_owner(interaction.user,interaction.guild):
+            await interaction.followup.send("Hanya Admin!",ephemeral=True);return
         data=ticket_data.get(interaction.channel.id,{})
-        await interaction.followup.send("Status: Menunggu Pembayaran");await send_status_update(interaction.guild,data.get("number","?"),data.get("username",""),data.get("user_id",interaction.user.id),data.get("paket","ORDER"),"Menunggu Pembayaran",0xfee75c)
+        await interaction.followup.send("Status: Menunggu Pembayaran")
+        await send_status_update(interaction.guild,data.get("number","?"),data.get("username",""),data.get("user_id",interaction.user.id),data.get("paket","ORDER"),"Menunggu Pembayaran",0xfee75c)
     @discord.ui.button(label="🔄 Diproses",style=discord.ButtonStyle.primary,custom_id="status_process")
     async def process(self,interaction:discord.Interaction,button:discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.followup.send("Hanya Admin!",ephemeral=True);return
+        if not is_admin_or_owner(interaction.user,interaction.guild):
+            await interaction.followup.send("Hanya Admin!",ephemeral=True);return
         data=ticket_data.get(interaction.channel.id,{})
-        await interaction.followup.send("Status: Diproses");await send_status_update(interaction.guild,data.get("number","?"),data.get("username",""),data.get("user_id",interaction.user.id),data.get("paket","ORDER"),"Diproses",0x5865f2)
+        await interaction.followup.send("Status: Diproses")
+        await send_status_update(interaction.guild,data.get("number","?"),data.get("username",""),data.get("user_id",interaction.user.id),data.get("paket","ORDER"),"Diproses",0x5865f2)
     @discord.ui.button(label="✅ Selesai",style=discord.ButtonStyle.success,custom_id="status_done")
     async def done(self,interaction:discord.Interaction,button:discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.followup.send("Hanya Admin!",ephemeral=True);return
+        if not is_admin_or_owner(interaction.user,interaction.guild):
+            await interaction.followup.send("Hanya Admin!",ephemeral=True);return
         data=ticket_data.get(interaction.channel.id,{})
-        await interaction.followup.send("Status: Selesai!");await send_status_update(interaction.guild,data.get("number","?"),data.get("username",""),data.get("user_id",interaction.user.id),data.get("paket","ORDER"),"Selesai",0x57f287)
+        await interaction.followup.send("Status: Selesai!")
+        await send_status_update(interaction.guild,data.get("number","?"),data.get("username",""),data.get("user_id",interaction.user.id),data.get("paket","ORDER"),"Selesai",0x57f287)
 class CloseView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="🔒 CLOSE TICKET",style=discord.ButtonStyle.danger,custom_id="close_ticket")
     async def close_btn(self,interaction:discord.Interaction,button:discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-        if not is_admin_or_owner(interaction.user,interaction.guild): await interaction.followup.send("Hanya Admin!",ephemeral=True);return
+        if not is_admin_or_owner(interaction.user,interaction.guild):
+            await interaction.followup.send("Hanya Admin!",ephemeral=True);return
         channel=interaction.channel;data=ticket_data.get(channel.id)
-        if not data: await channel.delete();return
-        await interaction.followup.send("Ticket ditutup...");await do_auto_close(interaction.guild,channel,data,reason="closed by owner",admin_user=interaction.user)
+        if not data:
+            await channel.delete();return
+        await interaction.followup.send("Ticket ditutup...")
+        await do_auto_close(interaction.guild,channel,data,reason="closed by owner",admin_user=interaction.user)
 class SaldoView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="💳 CEK SALDO SAYA",style=discord.ButtonStyle.primary,custom_id="cek_saldo_btn")
     async def cek_saldo(self,interaction:discord.Interaction,button:discord.ui.Button):
-        tr,tro,tt=get_total_belanja(interaction.user.id);lvl=get_level(tr);nxt,sisa=get_next_level(tr);poin=get_poin(interaction.user.id);embed=discord.Embed(color=0xff1493);embed.description=f"INFORMASI SALDO\n\nHalo {interaction.user.mention}\n\n🏆 Level: {lvl}\n➡️ Next: {nxt} (kurang {format_rp(sisa)})\n\nTotal Belanja: {format_rp(tr)}\nTotal Robux: {tro} R$\nTotal Transaksi: {tt}x\n🎁 Poin: {poin} poin";await interaction.response.send_message(embed=embed,ephemeral=True)
+        tr,tro,tt=get_total_belanja(interaction.user.id);lvl=get_level(tr);nxt,sisa=get_next_level(tr);poin=get_poin(interaction.user.id)
+        embed=discord.Embed(color=0xff1493);embed.description=f"INFORMASI SALDO\n\nHalo {interaction.user.mention}\n\n🏆 Level: {lvl}\n➡️ Next: {nxt} (kurang {format_rp(sisa)})\n\nTotal Belanja: {format_rp(tr)}\nTotal Robux: {tro} R$\nTotal Transaksi: {tt}x\n🎁 Poin: {poin} poin"
+        await interaction.response.send_message(embed=embed,ephemeral=True)
 def build_ticket_panel_baru_embed():
-    e=discord.Embed(title="🎫 Mipi Store - Ticket Order",description="💎 **Robux Via Username** - Beli Robux Via Username\n🔑 **Robux Vlog** - Beli Robux Via Login\n💠 **Beli Limited Item** - Beli Item Via Trade\n💰 **Jual Limited Item** - Cashout\n🎁 **Beli Item Offsale** - Via Redeem Code\n⭐ **Beli Roblox Plus** - Plus Monthly\n🛡️ **Rekber/MM** - Rekber, Akun, Jasa\n🐱 **Other/Nanya** - Pertanyaan\n👥 **Via Komunitas** - Via Group\n💃 **Beli Akun** - Beli Akun Sultan\n\n✨ **V7:** 3x Add Saldo! Sultan 👑 / Bulanan 🌸 / Dua-duanya!\nMipi Store 💗",color=0x2B2D31);e.set_image(url=WELCOME_URL);e.set_footer(text="Mipi Store - Pilih tombol di bawah!");return e
+    e=discord.Embed(title="🎫 Mipi Store - Ticket Order",description="💎 **Robux Via Username** - Beli Robux Via Username\n🔑 **Robux Vlog** - Beli Robux Via Login\n💠 **Beli Limited Item** - Beli Item Via Trade\n💰 **Jual Limited Item** - Cashout\n🎁 **Beli Item Offsale** - Via Redeem Code\n⭐ **Beli Roblox Plus** - Plus Monthly\n🛡️ **Rekber/MM** - Rekber, Akun, Jasa\n🐱 **Other/Nanya** - Pertanyaan\n👥 **Via Komunitas** - Via Group\n💃 **Beli Akun** - Beli Akun Sultan\n\n✨ **V8 FIX:** Anti Did Not Respond!\nMipi Store 💗",color=0x2B2D31);e.set_image(url=WELCOME_URL);e.set_footer(text="Mipi Store - Pilih tombol di bawah!");return e
 class OrderModalBaru(discord.ui.Modal):
     def __init__(self,jenis:str):
         self.jenis=jenis
@@ -699,32 +744,54 @@ class OrderModalBaru(discord.ui.Modal):
             self.add_item(self.promo);self.add_item(self.ref)
         else: self.promo=None;self.ref=None
     async def on_submit(self,interaction:discord.Interaction):
-        global ticket_counter;ticket_counter+=1;guild=interaction.guild;overwrites={guild.default_role:discord.PermissionOverwrite(read_messages=False),interaction.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),guild.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)};category=get_ticket_category(guild);prefix=self.jenis.lower().replace(" ","-").replace("/","-");channel=await guild.create_text_channel(name=f"{prefix}-{ticket_counter}-{interaction.user.name}",overwrites=overwrites,category=category);paket_text=f"{self.jenis} - {self.f2.value}";harga_akhir=0;kategori=jenis_to_kategori(self.jenis);robux_jumlah_fix=0;ref_by=None
-        if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
-            m_temp=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''));jumlah_int=int(m_temp.group(1)) if m_temp else 500;robux_jumlah_fix=jumlah_int;harga_awal=get_harga(jumlah_int,kategori);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err_promo=cek_promo(kode_input,harga_awal,jumlah_int)
-            if kode_input and not err_promo and diskon>0:
-                pdata=load_promo();k_up=kode_input.upper()
-                if k_up in pdata: pdata[k_up]["dipakai"]=pdata[k_up].get("dipakai",0)+1;save_promo(pdata)
-            if self.ref and self.ref.value: ref_by=claim_referral(interaction.user.id,self.ref.value.strip())
-        elif self.jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE","BELI AKUN","REKBER"]:
-            m_temp=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''))
-            if m_temp: robux_jumlah_fix=0;harga_akhir=int(m_temp.group(1))
-            else: harga_akhir=0
-        ticket_data[channel.id]={"user_id":interaction.user.id,"username":interaction.user.name,"nickname":self.f1.value,"roblox_username":self.f1.value,"pembayaran":"QRIS","created_at":time.time(),"last_activity":time.time(),"number":ticket_counter,"paket":paket_text,"promo":(self.promo.value if self.promo else ""),"harga_akhir":harga_akhir,"robux_jumlah":robux_jumlah_fix,"kategori":kategori,"referral_by":ref_by}
-        embed=discord.Embed(title=f"Ticket Baru - {self.jenis} - {interaction.user.name}",description=f"**Jenis:** {self.jenis}\n**{self.f1.label}:** {self.f1.value}\n**{self.f2.label}:** {self.f2.value}\n**{self.f3.label}:** {self.f3.value}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗",color=0xff69b4);embed.set_image(url=WELCOME_URL);await channel.send(interaction.user.mention+" Halo! Selamat datang di MIPI STORE! 🌸",embed=embed,view=CloseView());embed_qris=discord.Embed(title="Scan QRIS Disini",description="Silahkan scan QRIS ini ya 💗",color=0xff69b4);embed_qris.set_image(url=QRIS_URL);await channel.send(embed=embed_qris);await channel.send("STATUS ORDER - Owner only:",view=StatusView());await send_status_update(guild,ticket_counter,interaction.user.name,interaction.user.id,paket_text,"Ticket Baru Dibuat",0xff69b4);go_view=discord.ui.View();go_view.add_item(discord.ui.Button(label="BUKA TICKET SAYA",style=discord.ButtonStyle.link,url=f"https://discord.com/channels/{guild.id}/{channel.id}",emoji="🚀"));await interaction.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\n{channel.mention}",view=go_view,ephemeral=True)
+        try:
+            global ticket_counter;ticket_counter+=1;guild=interaction.guild
+            overwrites={guild.default_role:discord.PermissionOverwrite(read_messages=False),interaction.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),guild.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)}
+            category=get_ticket_category(guild);prefix=self.jenis.lower().replace(" ","-").replace("/","-")
+            channel=await guild.create_text_channel(name=f"{prefix}-{ticket_counter}-{interaction.user.name}",overwrites=overwrites,category=category)
+            paket_text=f"{self.jenis} - {self.f2.value}";harga_akhir=0;kategori=jenis_to_kategori(self.jenis);robux_jumlah_fix=0;ref_by=None
+            if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
+                m_temp=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''));jumlah_int=int(m_temp.group(1)) if m_temp else 500;robux_jumlah_fix=jumlah_int;harga_awal=get_harga(jumlah_int,kategori);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err_promo=cek_promo(kode_input,harga_awal,jumlah_int)
+                if kode_input and not err_promo and diskon>0:
+                    pdata=load_promo();k_up=kode_input.upper()
+                    if k_up in pdata: pdata[k_up]["dipakai"]=pdata[k_up].get("dipakai",0)+1;save_promo(pdata)
+                if self.ref and self.ref.value: ref_by=claim_referral(interaction.user.id,self.ref.value.strip())
+            elif self.jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE","BELI AKUN","REKBER"]:
+                m_temp=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''))
+                if m_temp: robux_jumlah_fix=0;harga_akhir=int(m_temp.group(1))
+                else: harga_akhir=0
+            ticket_data[channel.id]={"user_id":interaction.user.id,"username":interaction.user.name,"nickname":self.f1.value,"roblox_username":self.f1.value,"pembayaran":"QRIS","created_at":time.time(),"last_activity":time.time(),"number":ticket_counter,"paket":paket_text,"promo":(self.promo.value if self.promo else ""),"harga_akhir":harga_akhir,"robux_jumlah":robux_jumlah_fix,"kategori":kategori,"referral_by":ref_by}
+            embed=discord.Embed(title=f"Ticket Baru - {self.jenis} - {interaction.user.name}",description=f"**Jenis:** {self.jenis}\n**{self.f1.label}:** {self.f1.value}\n**{self.f2.label}:** {self.f2.value}\n**{self.f3.label}:** {self.f3.value}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗",color=0xff69b4);embed.set_image(url=WELCOME_URL)
+            await channel.send(interaction.user.mention+" Halo! Selamat datang di MIPI STORE! 🌸",embed=embed,view=CloseView())
+            embed_qris=discord.Embed(title="Scan QRIS Disini",description="Silahkan scan QRIS ini ya 💗",color=0xff69b4);embed_qris.set_image(url=QRIS_URL);await channel.send(embed=embed_qris)
+            await channel.send("STATUS ORDER - Owner only:",view=StatusView())
+            await send_status_update(guild,ticket_counter,interaction.user.name,interaction.user.id,paket_text,"Ticket Baru Dibuat",0xff69b4)
+            go_view=discord.ui.View();go_view.add_item(discord.ui.Button(label="BUKA TICKET SAYA",style=discord.ButtonStyle.link,url=f"https://discord.com/channels/{guild.id}/{channel.id}",emoji="🚀"))
+            await interaction.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\n{channel.mention}",view=go_view,ephemeral=True)
+        except Exception as e:
+            print(f"modal error: {e}");traceback.print_exc()
+            try:
+                if interaction.response.is_done(): await interaction.followup.send(f"❌ Gagal buat ticket: {e}",ephemeral=True)
+                else: await interaction.response.send_message(f"❌ Gagal buat ticket: {e}",ephemeral=True)
+            except: pass
 class ButtonTicket(discord.ui.Button):
     def __init__(self,label,custom_id,row,emoji):
         super().__init__(label=label,style=discord.ButtonStyle.primary,custom_id=custom_id,row=row,emoji=emoji);self.jenis_map={"t_via_send":"VIA SEND","t_via_login":"VIA LOGIN","t_beli_limited":"BELI LIMITED","t_jual_limited":"JUAL LIMITED","t_pluss":"ROBLOX PLUSS","t_offsale":"BELI ITEM OFFSALE","t_rekber":"REKBER","t_other":"OTHER","t_komunitas":"VIA KOMUNITAS","t_beli_akun":"BELI AKUN"}
     async def callback(self,interaction:discord.Interaction):
-        view=TicketTypeView()
-        if not await view.cek_store(interaction): return
-        jenis=self.jenis_map.get(self.custom_id,"VIA SEND");kat=jenis_to_kategori(jenis);kat_stock=kat
-        if jenis=="REKBER": kat_stock="rekber"
-        elif jenis=="BELI AKUN": kat_stock="beli_akun"
-        elif jenis=="OTHER": kat_stock="other"
-        if not is_open(kat_stock):
-            await interaction.response.send_message(f"❌ Maaf, **{jenis}** lagi **HABIS / TUTUP**! Coba kategori lain ya 💗",ephemeral=True);return
-        await interaction.response.send_modal(OrderModalBaru(jenis))
+        try:
+            view=TicketTypeView()
+            if not await view.cek_store(interaction): return
+            jenis=self.jenis_map.get(self.custom_id,"VIA SEND");kat=jenis_to_kategori(jenis);kat_stock=kat
+            if jenis=="REKBER": kat_stock="rekber"
+            elif jenis=="BELI AKUN": kat_stock="beli_akun"
+            elif jenis=="OTHER": kat_stock="other"
+            if not is_open(kat_stock):
+                await interaction.response.send_message(f"❌ Maaf, **{jenis}** lagi **HABIS / TUTUP**! Coba kategori lain ya 💗",ephemeral=True);return
+            await interaction.response.send_modal(OrderModalBaru(jenis))
+        except Exception as e:
+            print(f"button ticket error: {e}")
+            try: await interaction.response.send_message(f"❌ Error: {e}",ephemeral=True)
+            except: pass
 class TicketTypeView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -867,10 +934,15 @@ class PricelistPublicView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.select(placeholder="Pilih Kategori Produk (Robux / Akun)  >",custom_id="mipi_pricelist_public",options=[discord.SelectOption(label="Robux Via Username (Visend)",value="via_username",emoji="💎",description="Lihat rincian harga Visend"),discord.SelectOption(label="Robux Via Login (Vilog)",value="via_login",emoji="🔑",description="Lihat rincian harga Vilog"),discord.SelectOption(label="Robux Via Komunitas",value="via_komunitas",emoji="👥",description="Lihat rincian harga Komunitas"),discord.SelectOption(label="Roblox Plus",value="plus",emoji="⭐",description="Lihat rincian harga Plus"),discord.SelectOption(label="Limited Item",value="limited",emoji="💠",description="Lihat rincian harga Limited"),discord.SelectOption(label="Rekber / Middleman",value="rekber",emoji="🛡️",description="Lihat fee Rekber")])
     async def pilih_kategori_public(self, interaction: discord.Interaction, select: discord.ui.Select):
-        kat=select.values[0]
-        if kat=="rekber": e=build_rekber_embed()
-        else: e=build_pricelist_embed(kat)
-        await interaction.response.send_message(embed=e,ephemeral=True)
+        try:
+            kat=select.values[0]
+            if kat=="rekber": e=build_rekber_embed()
+            else: e=build_pricelist_embed(kat)
+            await interaction.response.send_message(embed=e,ephemeral=True)
+        except Exception as e:
+            print(f"pricelist select error: {e}")
+            try: await interaction.followup.send(f"❌ Error: {e}",ephemeral=True)
+            except: pass
 def build_pricelist_public_embed():
     e=discord.Embed(title="💎 DAFTAR HARGA ROBUX • MIPI STORE",description="💗 **Silakan pilih kategori produk pada menu dropdown di bawah:**\n\n💎 **Robux Via Username (Visend)**\n🔑 **Robux Via Login (Vilog)**\n👥 **Robux Via Komunitas**\n⭐ **Roblox Plus**\n💠 **Limited Item**\n🛡️ **Rekber / Middleman**\n\n• Harga sewaktu-waktu dapat berubah mengikuti rate pasar.\n• Rincian harga akan muncul secara privat (mode dismiss message).\n\n💗 **Mipi Store — Rafi Store**",color=0xff69b4);e.set_image(url=WELCOME_URL);e.set_footer(text="MIPI STORE • Pilih kategori di bawah ya!");return e
 PANEL_FILE="panel.json"
@@ -893,8 +965,8 @@ async def update_all_panels(guild):
                 if key=="ticket": await msg.edit(embed=build_ticket_panel_baru_embed(),view=TicketTypeView())
                 elif key=="pricelist": await msg.edit(embed=build_pricelist_public_embed(),view=PricelistPublicView())
                 elif key=="produk": await msg.edit(embed=build_produk_embed(),view=PanelProdukView())
-            except: pass
-    except: pass
+            except Exception as e: print(f"update panel {key} fail: {e}")
+    except Exception as e: print(f"update_all_panels error: {e}")
 async def refresh_ticket_panel(guild):
     try: await update_all_panels(guild)
     except: pass
@@ -910,10 +982,10 @@ async def on_message(message):
                     await message.channel.send(f"{message.author.mention} DILARANG JUALAN / LINK SCAM DI SINI!",delete_after=10);return
         if message.channel.id in ticket_data: ticket_data[message.channel.id]["last_activity"]=time.time()
         await bot.process_commands(message)
-    except: pass
+    except Exception as e: print(f"on_message error: {e}")
 @bot.event
 async def on_ready():
-    print(f"Login {bot.user} - MIPI STORE V7 3x ADD SALDO!")
+    print(f"Login {bot.user} - MIPI STORE V8 FIX DID NOT RESPOND!")
     bot.add_view(OrderView());bot.add_view(TicketTypeView());bot.add_view(CloseView());bot.add_view(StatusView());bot.add_view(RatingView(0));bot.add_view(SaldoView());bot.add_view(GiveawayView("dummy"));bot.add_view(EditPricelistView());bot.add_view(PanelProdukView());bot.add_view(PricelistPublicView())
     for oid in load_pending().keys():
         try: bot.add_view(KonfirmasiSaldoView(oid))
@@ -929,17 +1001,26 @@ async def on_ready():
     except Exception as e: print(f"Sync error: {e}")
 @bot.tree.command(name="ticket",description="Tampilkan panel order MIPI STORE")
 async def ticket(interaction:discord.Interaction):
-    await safe_defer(interaction,ephemeral=False)
-    ch_target=interaction.guild.get_channel(OPEN_TICKET_CHANNEL_ID) or interaction.channel;panels=load_panel()
-    if "ticket" in panels:
-        try:
-            ch=interaction.guild.get_channel(int(panels["ticket"]["channel_id"]));msg=await ch.fetch_message(int(panels["ticket"]["message_id"]));await msg.edit(embed=build_ticket_panel_baru_embed(),view=TicketTypeView());await safe_followup(interaction,content=f"✅ Panel di-update! Cek {ch.mention}",ephemeral=True);return
-        except: pass
-    msg=await ch_target.send(embed=build_ticket_panel_baru_embed(),view=TicketTypeView());panels["ticket"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(interaction,content=f"✅ Panel dikirim ke {ch_target.mention}!",ephemeral=True)
+    try:
+        await safe_defer(interaction,ephemeral=True)
+        ch_target=interaction.guild.get_channel(OPEN_TICKET_CHANNEL_ID) or interaction.channel
+        panels=load_panel()
+        if "ticket" in panels:
+            try:
+                ch=interaction.guild.get_channel(int(panels["ticket"]["channel_id"]));msg=await ch.fetch_message(int(panels["ticket"]["message_id"]));await msg.edit(embed=build_ticket_panel_baru_embed(),view=TicketTypeView());await safe_followup(interaction,content=f"✅ Panel di-update! Cek {ch.mention}",ephemeral=True);return
+            except Exception as e: print(f"ticket edit old fail: {e}")
+        msg=await ch_target.send(embed=build_ticket_panel_baru_embed(),view=TicketTypeView());panels["ticket"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(interaction,content=f"✅ Panel dikirim ke {ch_target.mention}!",ephemeral=True)
+    except Exception as e:
+        print(f"ticket cmd error: {e}");traceback.print_exc()
+        await safe_followup(interaction,content=f"❌ Gagal: {e}",ephemeral=True)
 @bot.tree.command(name="pricelist",description="Lihat pricelist ala 1ST MARKET - dropdown!")
 async def pricelist_baru(interaction:discord.Interaction):
-    await safe_defer(interaction,ephemeral=True)
-    e=build_pricelist_public_embed();msg=await interaction.channel.send(embed=e,view=PricelistPublicView());panels=load_panel();panels["pricelist"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(interaction,content="✅ Pricelist dropdown udah dikirim! Kayak 1ST MARKET!",ephemeral=True)
+    try:
+        await safe_defer(interaction,ephemeral=True)
+        e=build_pricelist_public_embed();msg=await interaction.channel.send(embed=e,view=PricelistPublicView());panels=load_panel();panels["pricelist"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(interaction,content="✅ Pricelist dropdown udah dikirim! Kayak 1ST MARKET!",ephemeral=True)
+    except Exception as e:
+        print(f"pricelist cmd error: {e}");traceback.print_exc()
+        await safe_followup(interaction,content=f"❌ Gagal: {e}",ephemeral=True)
 @bot.tree.command(name="open",description="Buka toko")
 async def open_cmd(interaction:discord.Interaction):
     global STORE_STATUS;await safe_defer(interaction,ephemeral=True)
@@ -1040,6 +1121,7 @@ async def jawab_tebak(interaction:discord.Interaction,nomor:int):
     await safe_defer(interaction,ephemeral=True)
     if interaction.user.id not in game_data: await safe_followup(interaction,content="Ketik /tebak-harga dulu!",ephemeral=True);return
     g=game_data.pop(interaction.user.id)
+    if nomor<1 or nomor>len(g["pilihan"]): await safe_followup(interaction,content="Nomor gak valid!",ephemeral=True);return
     if g["pilihan"][nomor-1]==g["harga"]:
         kode=f"GAME-{interaction.user.id%10000:04d}";data=load_voucher();data[kode]={"diskon":5,"tipe":"persen","max":1,"dipakai":0,"used_by":[]};save_voucher(data);await safe_followup(interaction,content=f"🎉 BENAR! Kamu dapet voucher **{kode}** (5%)!",ephemeral=True)
     else: await safe_followup(interaction,content=f"❌ Salah! Harganya {format_rp(g['harga'])}!",ephemeral=True)
@@ -1098,5 +1180,5 @@ async def pricelist_rekber(interaction:discord.Interaction):
     await safe_defer(interaction,ephemeral=True);await interaction.channel.send(embed=build_rekber_embed(),view=RekberView(guild_id=interaction.guild.id));await safe_followup(interaction,content="✅ Pricelist Rekber dikirim!",ephemeral=True)
 @bot.tree.command(name="help-mipi",description="Lihat semua command")
 async def help_mipi(interaction:discord.Interaction):
-    await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V7**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**ADD SALDO:** `/add-saldo` `/add-saldo-sultan` `/add-saldo-bulanan`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V7:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(interaction,content=txt,ephemeral=True)
+    await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V8 FIX**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**ADD SALDO:** `/add-saldo` `/add-saldo-sultan` `/add-saldo-bulanan`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V8:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(interaction,content=txt,ephemeral=True)
 bot.run(os.getenv("DISCORD_TOKEN"))
