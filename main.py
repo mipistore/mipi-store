@@ -585,7 +585,7 @@ class SaldoView(discord.ui.View):
 def build_ticket_panel_baru_embed():
     e=discord.Embed(title="🎫 Mipi Store - Ticket Order",description="💎 **Robux Via Username**\n🔑 **Robux Vlog**\n💠 **Beli Limited Item**\n💰 **Jual Limited Item**\n🎁 **Beli Item Offsale**\n⭐ **Beli Roblox Plus**\n🛡️ **Rekber/MM**\n🐱 **Other/Nanya**\n👥 **Via Komunitas**\n💃 **Beli Akun**\n\n✨ **V8:** 3x Add Saldo! Sultan 👑 / Bulanan 🌸 / Dua-duanya!\nMipi Store 💗",color=0x2B2D31);e.set_image(url=WELCOME_URL);e.set_footer(text="Mipi Store - Pilih tombol di bawah!");return e
     class OrderModalBaru(discord.ui.Modal):
-    def __init__(self,jenis:str):
+        def __init__(self,jenis:str):
         self.jenis=jenis;super().__init__(title=f"Order - {jenis} | MIPI STORE")
         if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]: l1,l2,l3="Username Roblox + Nickname","Nominal Robux","Metode Pembayaran";p1,p2,p3="Contoh: RafixMP (Rafi)","Contoh: 200","Contoh: QRIS / Dana"
         elif jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE"]: l1,l2,l3="Nama Item","Harga / Budget","Username Roblox";p1,p2,p3="Contoh: Classic Fedora","Contoh: 50000","Contoh: RafixMP"
