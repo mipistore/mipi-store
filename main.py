@@ -1181,4 +1181,233 @@ async def pricelist_rekber(interaction:discord.Interaction):
 @bot.tree.command(name="help-mipi",description="Lihat semua command")
 async def help_mipi(interaction:discord.Interaction):
     await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V8 FIX**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**ADD SALDO:** `/add-saldo` `/add-saldo-sultan` `/add-saldo-bulanan`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V8:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(interaction,content=txt,ephemeral=True)
+async def update_all_panels(guild):
+    try:
+        panels=load_panel()
+        for key,info in list(panels.items()):
+            try:
+                ch=guild.get_channel(int(info["channel_id"]))
+                if not ch: continue
+                msg=await ch.fetch_message(int(info["message_id"]))
+                if key=="ticket": await msg.edit(embed=build_ticket_panel_baru_embed(),view=TicketTypeView())
+                elif key=="pricelist": await msg.edit(embed=build_pricelist_public_embed(),view=PricelistPublicView())
+                elif key=="produk": await msg.edit(embed=build_produk_embed(),view=PanelProdukView())
+            except: pass
+    except: pass
+async def refresh_ticket_panel(guild):
+    try: await update_all_panels(guild)
+    except: pass
+@bot.event
+async def on_message(message):
+    try:
+        if message.author.bot: return
+        if message.guild and "market" in message.channel.name.lower():
+            if message.author.id!=message.guild.owner_id and not message.author.guild_permissions.administrator:
+                if is_banned_selling(message.content) or is_scam_link(message.content):
+                    try: await message.delete()
+                    except: pass
+                    await message.channel.send(f"{message.author.mention} DILARANG JUALAN / LINK SCAM DI SINI!",delete_after=10);return
+        if message.channel.id in ticket_data: ticket_data[message.channel.id]["last_activity"]=time.time()
+        await bot.process_commands(message)
+    except: pass
+@bot.event
+async def on_ready():
+    print(f"Login {bot.user} - MIPI STORE V8 FIX!")
+    bot.add_view(OrderView());bot.add_view(TicketTypeView());bot.add_view(CloseView());bot.add_view(StatusView());bot.add_view(RatingView(0));bot.add_view(SaldoView());bot.add_view(GiveawayView("dummy"));bot.add_view(EditPricelistView());bot.add_view(PanelProdukView());bot.add_view(PricelistPublicView())
+    for oid in load_pending().keys():
+        try: bot.add_view(KonfirmasiSaldoView(oid))
+        except: pass
+    if not check_inactive.is_running(): check_inactive.start()
+    if not auto_update_top_sultan.is_running(): auto_update_top_sultan.start()
+    if not auto_rekap_omset.is_running(): auto_rekap_omset.start()
+    for g in bot.guilds:
+        try: await update_all_top(g)
+        except: pass
+    try:
+        synced=await bot.tree.sync();print(f"Synced {len(synced)} commands!")
+    except Exception as e: print(f"Sync error: {e}")
+@bot.tree.command(name="ticket",description="Tampilkan panel order MIPI STORE")
+async def ticket(interaction:discord.Interaction):
+    try:
+        await safe_defer(interaction,ephemeral=False)
+        ch_target=interaction.guild.get_channel(OPEN_TICKET_CHANNEL_ID) or interaction.channel;panels=load_panel()
+        if "ticket" in panels:
+            try:
+                ch=interaction.guild.get_channel(int(panels["ticket"]["channel_id"]));msg=await ch.fetch_message(int(panels["ticket"]["message_id"]));await msg.edit(embed=build_ticket_panel_baru_embed(),view=TicketTypeView());await safe_followup(interaction,content=f"✅ Panel di-update! Cek {ch.mention}",ephemeral=True);return
+            except: pass
+        msg=await ch_target.send(embed=build_ticket_panel_baru_embed(),view=TicketTypeView());panels["ticket"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(interaction,content=f"✅ Panel dikirim ke {ch_target.mention}!",ephemeral=True)
+    except Exception as e:
+        print(f"ticket error: {e}");await safe_followup(interaction,content=f"❌ Error ticket: {e}",ephemeral=True)
+@bot.tree.command(name="pricelist",description="Lihat pricelist ala 1ST MARKET - dropdown!")
+async def pricelist_baru(interaction:discord.Interaction):
+    try:
+        await safe_defer(interaction,ephemeral=True)
+        e=build_pricelist_public_embed();msg=await interaction.channel.send(embed=e,view=PricelistPublicView());panels=load_panel();panels["pricelist"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(interaction,content="✅ Pricelist dropdown udah dikirim!",ephemeral=True)
+    except Exception as e:
+        print(f"pricelist error: {e}");await safe_followup(interaction,content=f"❌ Error: {e}",ephemeral=True)
+@bot.tree.command(name="open",description="Buka toko")
+async def open_cmd(interaction:discord.Interaction):
+    global STORE_STATUS;await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Cuma admin!",ephemeral=True);return
+    STORE_STATUS="open";await safe_followup(interaction,content="✅ Mipi Store **DIBUKA**!")
+@bot.tree.command(name="break",description="Toko break sebentar")
+async def break_cmd(interaction:discord.Interaction):
+    global STORE_STATUS;await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Cuma admin!",ephemeral=True);return
+    STORE_STATUS="break";await safe_followup(interaction,content="☕ Mipi Store **BREAK** 15-30 menit!")
+@bot.tree.command(name="close",description="Tutup toko")
+async def close_cmd(interaction:discord.Interaction):
+    global STORE_STATUS;await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Cuma admin!",ephemeral=True);return
+    STORE_STATUS="closed";await safe_followup(interaction,content="💤 Mipi Store **TUTUP**!")
+@bot.tree.command(name="panel-edit-pricelist",description="Buka panel edit pricelist (Admin)")
+async def panel_edit_pricelist(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="❌ Hanya Admin!",ephemeral=True);return
+    e=discord.Embed(title="💎 EDIT PRICELIST - TINGGAL PENCET!",description="1️⃣ Pilih Kategori\n2️⃣ Pilih Nominal / Item\n3️⃣ Pencet ✏️ Edit Harga Ini",color=0xff69b4);await interaction.channel.send(embed=e,view=EditPricelistView());await safe_followup(interaction,content="✅ Panel Edit udah dikirim!",ephemeral=True)
+@bot.tree.command(name="panel-produk",description="Buka panel produk (Admin)")
+async def panel_produk(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="❌ Hanya Admin!",ephemeral=True);return
+    e=discord.Embed(title="🛍️ KELOLA PRODUK",description="➕ Tambah / ➖ Kurangin / 📦 Tambah Stok / 🛍️ Lihat Katalog",color=0xff69b4);await interaction.channel.send(embed=e,view=PanelProdukView());await safe_followup(interaction,content="✅ Panel Produk dikirim!",ephemeral=True)
+@bot.tree.command(name="list-produk",description="Lihat semua produk")
+async def list_produk(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);await safe_followup(interaction,embed=build_produk_embed(),ephemeral=True)
+@bot.tree.command(name="tutup-kategori",description="Tutup 1 tombol (Admin)")
+async def tutup_kategori(interaction:discord.Interaction,kategori:str):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);set_stock(kat,False);await refresh_ticket_panel(interaction.guild);await safe_followup(interaction,content=f"🔴 **{kat.upper()} DITUTUP!**",ephemeral=True)
+@bot.tree.command(name="buka-kategori",description="Buka lagi 1 tombol (Admin)")
+async def buka_kategori(interaction:discord.Interaction,kategori:str):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);set_stock(kat,True);await refresh_ticket_panel(interaction.guild);await send_notify_restock(interaction.guild,kat);await safe_followup(interaction,content=f"🟢 **{kat.upper()} DIBUKA LAGI!**",ephemeral=True)
+@bot.tree.command(name="cek-stock",description="Cek stock")
+async def cek_stock(interaction:discord.Interaction):
+    try:
+        await safe_defer(interaction,ephemeral=True);s=load_stock();txt="📦 **STATUS STOCK**\n\n"
+        for k in ["via_username","via_login","via_komunitas","plus","limited","rekber","beli_akun","other"]: txt+=f"{'🟢 BUKA' if s.get(k,True) else '🔴 TUTUP'} — {k}\n"
+        await safe_followup(interaction,content=txt,ephemeral=True)
+    except Exception as e: await safe_followup(interaction,content=f"❌ Error: {e}",ephemeral=True)
+@bot.tree.command(name="notify",description="DM otomatis kalo restock!")
+async def notify_cmd(interaction:discord.Interaction,kategori:str):
+    await safe_defer(interaction,ephemeral=True);kat=kategori_alias(kategori);add_notify(interaction.user.id,kat);await safe_followup(interaction,content=f"🔔 Oke! Kalo **{kat}** restock, kamu aku DM! 💗",ephemeral=True)
+@bot.tree.command(name="saldo",description="Cek saldo kamu")
+async def saldo_cmd(interaction:discord.Interaction,user:discord.User=None):
+    await safe_defer(interaction,ephemeral=True);target=user or interaction.user;tr,tro,tt=get_total_belanja(target.id);lvl=get_level(tr);nxt,sisa=get_next_level(tr);poin=get_poin(target.id);embed=discord.Embed(color=0xff1493);embed.description=f"Saldo {target.mention}\n\n🏆 Level: {lvl}\n➡️ Next: {nxt} (kurang {format_rp(sisa)})\n\nTotal Belanja: {format_rp(tr)}\nTotal Robux: {tro} R$\nTransaksi: {tt}x\n🎁 Poin: {poin}";await safe_followup(interaction,embed=embed,ephemeral=True)
+@bot.tree.command(name="top-sultan",description="Lihat Top Sultan ALL TIME 👑")
+async def top_sultan_cmd(interaction:discord.Interaction):
+    try:
+        await safe_defer(interaction,ephemeral=True);e=build_top_sultan_embed_semua();await safe_followup(interaction,embed=e,ephemeral=True)
+    except Exception as e: await safe_followup(interaction,content=f"❌ Error: {e}",ephemeral=True)
+@bot.tree.command(name="top-bulanan",description="Lihat Top Bulanan 🌸")
+async def top_bulanan_cmd(interaction:discord.Interaction):
+    try:
+        await safe_defer(interaction,ephemeral=True);e=build_top_sultan_embed_bulanan();await safe_followup(interaction,embed=e,ephemeral=True)
+    except Exception as e: await safe_followup(interaction,content=f"❌ Error: {e}",ephemeral=True)
+@bot.tree.command(name="reset-bulanan",description="Reset Top Bulanan (Admin)")
+async def reset_bulanan_cmd(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    save_leaderboard_bulanan({});await update_top_bulanan(interaction.guild);await safe_followup(interaction,content="✅ **Top Bulanan di-reset!** Top Sultan aman!",ephemeral=True)
+@bot.tree.command(name="statistik",description="Lihat statistik omset")
+async def statistik_cmd(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);s=get_statistik();e=discord.Embed(title="📊 STATISTIK MIPI STORE",description=f"📅 Hari Ini: {format_rp(s['hari_rp'])}\n📅 Bulan Ini: {format_rp(s['bulan_rp'])} ({s['bulan_tr']} transaksi)\n👑 All Time: {format_rp(s['all_rp'])} ({s['all_tr']} transaksi)",color=0xff69b4);await safe_followup(interaction,embed=e,ephemeral=True)
+@bot.tree.command(name="referral",description="Lihat kode referral kamu")
+async def referral_cmd(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);data=load_referral();uid=str(interaction.user.id);code=get_referral_code(interaction.user.id)
+    if uid not in data: data[uid]={"code":code,"total_komisi":0,"total_referral":0,"history":[]};save_referral(data)
+    info=data[uid];await safe_followup(interaction,content=f"💸 **REFERRAL KAMU**\n\n🔑 Kode: **{info['code']}**\n💰 Komisi: {format_rp(info['total_komisi'])}\n👥 Temen: {info['total_referral']} orang",ephemeral=True)
+@bot.tree.command(name="daily",description="Claim daily reward!")
+async def daily_cmd(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);bonus,total,err=claim_daily(interaction.user.id)
+    if err: await safe_followup(interaction,content=f"❌ {err}\nPoin: {total}",ephemeral=True)
+    else: await safe_followup(interaction,content=f"🎁 **DAILY BERHASIL!** +{bonus} poin! Total: {total} poin",ephemeral=True)
+@bot.tree.command(name="tuker-poin",description="Tuker poin jadi Robux!")
+async def tuker_poin(interaction:discord.Interaction,jumlah:int):
+    await safe_defer(interaction,ephemeral=True);poin=get_poin(interaction.user.id)
+    if poin<jumlah: await safe_followup(interaction,content=f"❌ Poin cuma {poin}!",ephemeral=True);return
+    if jumlah<100: await safe_followup(interaction,content="❌ Minimal 100 poin!",ephemeral=True);return
+    if not use_poin(interaction.user.id,jumlah): await safe_followup(interaction,content="❌ Gagal!",ephemeral=True);return
+    oid=add_to_pending(interaction.user.id,interaction.user.name,f"TUKER POIN - {jumlah} Robux",999999,f"tuker-poin-{interaction.user.name}",kategori="via_username",robux_jumlah=jumlah,harga_akhir=0);await safe_followup(interaction,content=f"✅ Tuker berhasil! +{jumlah} Robux PENDING! ID: {oid}",ephemeral=True)
+@bot.tree.command(name="buat-voucher",description="Bikin voucher (Admin)")
+async def buat_voucher(interaction:discord.Interaction,kode:str,diskon:int,tipe:str="persen",max_pakai:int=10):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    data=load_voucher();data[kode.upper()]={"diskon":int(diskon),"tipe":tipe.lower(),"max":int(max_pakai),"dipakai":0,"used_by":[]};save_voucher(data);await safe_followup(interaction,content=f"✅ Voucher **{kode.upper()}** dibuat!",ephemeral=True)
+@bot.tree.command(name="redeem-voucher",description="Redeem voucher!")
+async def redeem_voucher_cmd(interaction:discord.Interaction,kode:str):
+    await safe_defer(interaction,ephemeral=True);v,err=redeem_voucher(interaction.user.id,kode)
+    if err: await safe_followup(interaction,content=f"❌ {err}",ephemeral=True)
+    else: await safe_followup(interaction,content=f"✅ Voucher {kode.upper()} diredeem! Diskon {v['diskon']} {v['tipe']}! SS & kasih ke admin!",ephemeral=True)
+@bot.tree.command(name="tebak-harga",description="Main tebak harga!")
+async def tebak_harga(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);nominal,harga,pilihan=start_tebak_harga();game_data[interaction.user.id]={"nominal":nominal,"harga":harga,"pilihan":pilihan};txt=f"🎮 **TEBAK HARGA**\n\nBerapa harga **{nominal} Robux Via Username**?\n\n"
+    for i,p in enumerate(pilihan,1): txt+=f"{i}. {format_rp(p)}\n"
+    txt+="\nJawab pake `/jawab-tebak <nomor>`!";await safe_followup(interaction,content=txt,ephemeral=True)
+@bot.tree.command(name="jawab-tebak",description="Jawab tebak harga!")
+async def jawab_tebak(interaction:discord.Interaction,nomor:int):
+    await safe_defer(interaction,ephemeral=True)
+    if interaction.user.id not in game_data: await safe_followup(interaction,content="Ketik /tebak-harga dulu!",ephemeral=True);return
+    g=game_data.pop(interaction.user.id)
+    if g["pilihan"][nomor-1]==g["harga"]:
+        kode=f"GAME-{interaction.user.id%10000:04d}";data=load_voucher();data[kode]={"diskon":5,"tipe":"persen","max":1,"dipakai":0,"used_by":[]};save_voucher(data);await safe_followup(interaction,content=f"🎉 BENAR! Kamu dapet voucher **{kode}** (5%)!",ephemeral=True)
+    else: await safe_followup(interaction,content=f"❌ Salah! Harganya {format_rp(g['harga'])}!",ephemeral=True)
+@bot.tree.command(name="tambah-promo",description="Tambah promo (Admin)")
+async def tambah_promo(interaction:discord.Interaction,kode:str,diskon:int,tipe:str="persen",max_pakai:int=999):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    data=load_promo();data[kode.upper()]={"diskon":int(diskon),"tipe":tipe.lower(),"max":int(max_pakai),"dipakai":0};save_promo(data);await safe_followup(interaction,content=f"✅ Promo **{kode.upper()}** ditambah!",ephemeral=True)
+@bot.tree.command(name="lihat-promo",description="Lihat semua promo")
+async def lihat_promo(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);data=load_promo()
+    if not data: await safe_followup(interaction,content="Belum ada promo!",ephemeral=True);return
+    txt="🎁 **DAFTAR PROMO**\n\n"
+    for k,v in data.items(): txt+=f"**{k}** — {v.get('diskon')} {v.get('tipe')} — {v.get('dipakai',0)}/{v.get('max',999)}\n"
+    await safe_followup(interaction,content=txt,ephemeral=True)
+@bot.tree.command(name="giveaway",description="Bikin giveaway (Admin)")
+async def giveaway_cmd(interaction:discord.Interaction,hadiah:str,pemenang:int=1,menit:int=60):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    gid=f"GW-{int(time.time())}";giveaway_data[gid]={"hadiah":hadiah,"host_mention":interaction.user.mention,"peserta":[],"pemenang":int(pemenang),"ended":False};e=discord.Embed(title="🎉 GIVEAWAY MIPI STORE!",description=f"Hadiah: {hadiah}\nHost: {interaction.user.mention}\nPeserta: 0 orang",color=0xff69b4);msg=await interaction.channel.send(embed=e,view=GiveawayView(gid));await safe_followup(interaction,content=f"✅ Giveaway dibuat! Berakhir {menit} menit lagi!",ephemeral=True);await asyncio.sleep(int(menit)*60);await end_giveaway(interaction.guild,msg.channel.id,msg.id,gid)
+@bot.tree.command(name="pending",description="Lihat pending (Admin)")
+async def pending_cmd(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    data=load_pending()
+    if not data: await safe_followup(interaction,content="✅ Gak ada pending!",ephemeral=True);return
+    txt="⏳ **PENDING SALDO**\n\n"
+    for oid,d in data.items(): txt+=f"**{oid}** — <@{d['user_id']}> — {d['paket']} — {d['robux']} R$ — {format_rp(d['harga'])}\n"
+    await safe_followup(interaction,content=txt,ephemeral=True)
+@bot.tree.command(name="add-saldo-sultan",description="Tambah saldo ke TOP SULTAN doang 👑 (Admin)")
+async def add_saldo_sultan(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_sultan_only(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(interaction,content=f"👑 **+{robux} R$** ke **TOP SULTAN** doang!\n{user.mention} • {format_rp(harga)}\nTop Bulanan gak berubah!",ephemeral=True)
+    try: await update_top_sultan(interaction.guild)
+    except: pass
+@bot.tree.command(name="add-saldo-bulanan",description="Tambah saldo ke TOP BULANAN doang 🌸 (Admin)")
+async def add_saldo_bulanan(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_bulanan_only(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(interaction,content=f"🌸 **+{robux} R$** ke **TOP BULANAN** doang!\n{user.mention} • {format_rp(harga)}\nTop Sultan gak berubah!",ephemeral=True)
+    try: await update_top_bulanan(interaction.guild)
+    except: pass
+@bot.tree.command(name="add-saldo",description="Tambah saldo ke DUA-DUANYA 👑+🌸 (Admin)")
+async def add_saldo(interaction:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
+    await safe_defer(interaction,ephemeral=True)
+    if not is_admin_or_owner(interaction.user,interaction.guild): await safe_followup(interaction,content="Hanya Admin!",ephemeral=True);return
+    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_leaderboard(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(interaction,content=f"✅ **+{robux} R$** ke **DUA-DUANYA!**\n{user.mention} • {format_rp(harga)}\n👑 Top Sultan + 🌸 Top Bulanan ke-update!",ephemeral=True)
+    try: await update_all_top(interaction.guild)
+    except: pass
+@bot.tree.command(name="lihat-harga",description="Lihat harga pricelist")
+async def lihat_harga(interaction:discord.Interaction,kategori:str="via_username"):
+    await safe_defer(interaction,ephemeral=True);kat=kategori_alias(kategori);await safe_followup(interaction,embed=build_pricelist_embed(kat),ephemeral=True)
+@bot.tree.command(name="pricelist-rekber",description="Pricelist Rekber")
+async def pricelist_rekber(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);await interaction.channel.send(embed=build_rekber_embed(),view=RekberView(guild_id=interaction.guild.id));await safe_followup(interaction,content="✅ Pricelist Rekber dikirim!",ephemeral=True)
+@bot.tree.command(name="help-mipi",description="Lihat semua command")
+async def help_mipi(interaction:discord.Interaction):
+    await safe_defer(interaction,ephemeral=True);txt="💗 **HELP - MIPI STORE V8 FIX**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**ADD SALDO:** `/add-saldo` `/add-saldo-sultan` `/add-saldo-bulanan`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V8:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(interaction,content=txt,ephemeral=True)
 bot.run(os.getenv("DISCORD_TOKEN"))
