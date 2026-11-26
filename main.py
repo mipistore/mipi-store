@@ -582,7 +582,8 @@ async def do_auto_close(guild,channel,data,reason="auto-closed",admin_user=None)
         try: await channel.delete()
         except: pass
     except Exception as e: print(f"do_auto_close error: {e}")
-        @tasks.loop(minutes=1)
+
+    @tasks.loop(minutes=1)
 async def check_inactive():
     try:
         now=time.time()
