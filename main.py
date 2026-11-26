@@ -616,8 +616,8 @@ class OrderModalBaru(discord.ui.Modal):
         self.jenis=jenis
         super().__init__(title=f"Order - {jenis} | MIPI STORE")
         if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
-            label1,label2,label3="Username Roblox","Nominal Robux","Metode Pembayaran"
-            ph1,ph2,ph3="Contoh: RafixMP","Contoh: 200","Contoh: QRIS / Dana / Gopay"
+label1,label2,label3="Username Roblox + Nickname","Nominal Robux","Metode Pembayaran"
+ph1,ph2,ph3="Contoh: RafixMP (Rafi)","Contoh: 200","Contoh: QRIS / Dana"
         elif jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE"]:
             label1,label2,label3="Nama Item","Harga / Budget","Username Roblox"
             ph1,ph2,ph3="Contoh: Classic Fedora","Contoh: 50000","Contoh: RafixMP"
