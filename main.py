@@ -649,7 +649,18 @@ class TicketTypeView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         def _label(base,kat_stock): return base if is_open(kat_stock) else base+" - HABIS"
-        btns=[("Robux Via Username","t_via_send",0,"💎","via_username"),("Robux Vlog","t_via_login",0,"🔑","via_login"),("Beli Limited Item","t_beli_limited",1,"💠","limited"),("Jual Limited Item","t_jual_limited",1,"💰","limited"),("Beli Roblox Plus","t_pluss",2,"⭐","plus"),("Beli Item Offsale","t_offsale",2,"🎁","limited"),("Rekber/MM","t_rekber",3,"🛡️","rekber"),("Other/Nanya","t_other",3,"🐱","other"),("Via Komunitas","t_komunitas",4,"👥","via_komunitas"),("Beli Akun","t_beli_akun",4,"💃","beli_akun")]
+        btns=[
+          ("Robux Via Username","t_via_send",0,"<a:robux:1563387482182254725>","via_username"),
+          ("Robux Vlog","t_via_login",0,"<:emoji_10:1431192496876027975>","via_login"),
+          ("Beli Limited Item","t_beli_limited",1,"<a:diamond:1516624681585869041>","limited"),
+          ("Jual Limited Item","t_jual_limited",1,"<a:moneybag:1512329138172596265>","limited"),
+          ("Beli Roblox Plus","t_pluss",2,"<:b_RobloxPlus:1499160341983006730>","plus"),
+          ("Beli Item Offsale","t_offsale",2,"<a:emoji_20:1550165111333986354>","limited"),
+          ("Rekber/MM","t_rekber",3,"<a:emoji_39:1555770513907916822>","rekber"),
+          ("Other/Nanya","t_other",3,"<a:b_bluequestion:1345684551502008340>","other"),
+          ("Via Komunitas","t_komunitas",4,"<a:rbx:1530537752729223308>","via_komunitas"),
+          ("Beli Akun","t_beli_akun",4,"<a:star_purple:1303353812374913035>","beli_akun"),
+        ]
         for label,cid,row,emoji,kat_stock in btns:
             b=ButtonTicket(_label(label,kat_stock),cid,row=row,emoji=emoji)
             if not is_open(kat_stock): b.disabled=True;b.style=discord.ButtonStyle.secondary
