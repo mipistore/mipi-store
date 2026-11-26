@@ -575,7 +575,7 @@ class CloseView(discord.ui.View):
         if not is_admin_or_owner(i.user,i.guild): await i.followup.send("Hanya Admin!",ephemeral=True);return
         ch=i.channel;d=ticket_data.get(ch.id)
         if not d: await ch.delete();return
-        await i.followup.send("Ticket ditutup...");await do_auto_close(i.guild,ch,d,reason="closed",admin_user=i.user)
+        await i.followup.send("Ticket ditutup...");await do_auto_close(i.guild,ch,d,reason="closed",admin=i.user)
 class SaldoView(discord.ui.View):
     def __init__(self): super().__init__(timeout=None)
     @discord.ui.button(label="💳 CEK SALDO SAYA",style=discord.ButtonStyle.primary,custom_id="cek_saldo_btn")
@@ -586,29 +586,48 @@ def build_ticket_panel_baru_embed():
 class OrderModalBaru(discord.ui.Modal):
     def __init__(self,jenis:str):
         self.jenis=jenis;super().__init__(title=f"Order - {jenis} | MIPI STORE")
-        if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]: l1,l2,l3="Username Roblox + Nickname","Nominal Robux","Metode Pembayaran";p1,p2,p3="Contoh: RafixMP (Rafi)","Contoh: 200","Contoh: QRIS / Dana"
-        elif jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE"]: l1,l2,l3="Nama Item","Harga / Budget","Username Roblox";p1,p2,p3="Contoh: Classic Fedora","Contoh: 50000","Contoh: RafixMP"
-        elif jenis=="BELI AKUN": l1,l2,l3="Akun Yang Dicari","Budget","Username Discord";p1,p2,p3="Contoh: Akun 2018+","Contoh: 100000","Contoh: m.rafii"
-        elif jenis=="REKBER": l1,l2,l3="Barang Yang Direkber","Nominal","Username Penjual/Pembeli";p1,p2,p3="Contoh: Limited Fedora","Contoh: 200000","Contoh: @pembeli"
-        else: l1,l2,l3="Keperluan","Detail","Username Roblox";p1,p2,p3="Contoh: Mau nanya stok","Tulis detailnya","Contoh: RafixMP"
-        self.f1=discord.ui.TextInput(label=l1,placeholder=p1,required=True,max_length=100);self.f2=discord.ui.TextInput(label=l2,placeholder=p2,required=True,max_length=100);self.f3=discord.ui.TextInput(label=l3,placeholder=p3,required=False,max_length=100,style=discord.TextStyle.paragraph);self.add_item(self.f1);self.add_item(self.f2);self.add_item(self.f3)
-        if jenis in ["VIA SEND","VIA LOGIN"]:
-            self.promo=discord.ui.TextInput(label="Kode Promo (Opsional)",placeholder="Kosongkan jika tidak ada",required=False,max_length=20);self.ref=discord.ui.TextInput(label="Kode Referral (Opsional)",placeholder="Kosongkan jika tidak ada",required=False,max_length=20);self.add_item(self.promo);self.add_item(self.ref)
-        else: self.promo=None;self.ref=None
+        if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
+            # PAS: Username di atas, Nickname di bawahnya!
+            self.f1=discord.ui.TextInput(label="Username Roblox (Pakai @)",placeholder="Contoh: @RafixMP",required=True,max_length=100)
+            self.f2=discord.ui.TextInput(label="Nickname Roblox",placeholder="Contoh: Rafi",required=True,max_length=100)
+            self.f3=discord.ui.TextInput(label="Nominal Robux",placeholder="Contoh: 200",required=True,max_length=100)
+            self.add_item(self.f1);self.add_item(self.f2);self.add_item(self.f3)
+            self.promo=discord.ui.TextInput(label="Kode Promo (Opsional)",placeholder="Kosongkan jika tidak ada",required=False,max_length=20)
+            self.ref=discord.ui.TextInput(label="Kode Referral (Opsional)",placeholder="Kosongkan jika tidak ada",required=False,max_length=20)
+            self.add_item(self.promo);self.add_item(self.ref)
+        else:
+            if jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE"]: l1,l2,l3="Nama Item","Harga / Budget","Username Roblox";p1,p2,p3="Contoh: Classic Fedora","Contoh: 50000","Contoh: @RafixMP"
+            elif jenis=="BELI AKUN": l1,l2,l3="Akun Yang Dicari","Budget","Username Discord";p1,p2,p3="Contoh: Akun 2018+","Contoh: 100000","Contoh: m.rafii"
+            elif jenis=="REKBER": l1,l2,l3="Barang Yang Direkber","Nominal","Username Penjual/Pembeli";p1,p2,p3="Contoh: Limited Fedora","Contoh: 200000","Contoh: @pembeli"
+            else: l1,l2,l3="Keperluan","Detail","Username Roblox";p1,p2,p3="Contoh: Mau nanya stok","Tulis detailnya","Contoh: @RafixMP"
+            self.f1=discord.ui.TextInput(label=l1,placeholder=p1,required=True,max_length=100);self.f2=discord.ui.TextInput(label=l2,placeholder=p2,required=True,max_length=100);self.f3=discord.ui.TextInput(label=l3,placeholder=p3,required=False,max_length=100,style=discord.TextStyle.paragraph);self.add_item(self.f1);self.add_item(self.f2);self.add_item(self.f3)
+            self.promo=None;self.ref=None
     async def on_submit(self,i:discord.Interaction):
         try:
-            global ticket_counter;ticket_counter+=1;g=i.guild;ov={g.default_role:discord.PermissionOverwrite(read_messages=False),i.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),g.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)};cat=get_ticket_category(g);prefix=self.jenis.lower().replace(" ","-").replace("/","-");ch=await g.create_text_channel(name=f"{prefix}-{ticket_counter}-{i.user.name}",overwrites=ov,category=cat);paket_text=f"{self.jenis} - {self.f2.value}";harga_akhir=0;kat=jenis_to_kategori(self.jenis);robux_fix=0;ref_by=None
+            global ticket_counter;ticket_counter+=1;g=i.guild;ov={g.default_role:discord.PermissionOverwrite(read_messages=False),i.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),g.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)};cat=get_ticket_category(g);prefix=self.jenis.lower().replace(" ","-").replace("/","-");ch=await g.create_text_channel(name=f"{prefix}-{ticket_counter}-{i.user.name}",overwrites=ov,category=cat)
+            # PAS: Username di atas, Nickname di bawah!
             if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
-                mt=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''));ji=int(mt.group(1)) if mt else 500;robux_fix=ji;ha=get_harga(ji,kat);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err=cek_promo(kode_input,ha,ji)
+                roblox_val=self.f1.value.strip()
+                if not roblox_val.startswith("@"): roblox_val="@"+roblox_val
+                nick_val=self.f2.value.strip();nominal_val=self.f3.value.strip();display_f1=roblox_val;display_f2=nick_val
+            else:
+                roblox_val=self.f1.value;nick_val=self.f1.value;nominal_val=self.f2.value;display_f1=self.f1.value;display_f2=self.f2.value
+            paket_text=f"{self.jenis} - {nominal_val}";harga_akhir=0;kat=jenis_to_kategori(self.jenis);robux_fix=0;ref_by=None
+            if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
+                mt=re.search(r'(\d+)',str(nominal_val).replace('.','').replace(',',''));ji=int(mt.group(1)) if mt else 500;robux_fix=ji;ha=get_harga(ji,kat);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err=cek_promo(kode_input,ha,ji)
                 if kode_input and not err and diskon>0:
                     pd=load_promo();ku=kode_input.upper()
                     if ku in pd: pd[ku]["dipakai"]=pd[ku].get("dipakai",0)+1;save_promo(pd)
                 if self.ref and self.ref.value: ref_by=claim_referral(i.user.id,self.ref.value.strip())
             elif self.jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE","BELI AKUN","REKBER"]:
-                mt=re.search(r'(\d+)',str(self.f2.value).replace('.','').replace(',',''))
+                mt=re.search(r'(\d+)',str(nominal_val).replace('.','').replace(',',''))
                 harga_akhir=int(mt.group(1)) if mt else 0
-            ticket_data[ch.id]={"user_id":i.user.id,"username":i.user.name,"nickname":self.f1.value,"roblox_username":self.f1.value,"pembayaran":"QRIS","created_at":time.time(),"last_activity":time.time(),"number":ticket_counter,"paket":paket_text,"promo":(self.promo.value if self.promo else ""),"harga_akhir":harga_akhir,"robux_jumlah":robux_fix,"kategori":kat,"referral_by":ref_by}
-            e=discord.Embed(title=f"Ticket Baru - {self.jenis} - {i.user.name}",description=f"**Jenis:** {self.jenis}\n**{self.f1.label}:** {self.f1.value}\n**{self.f2.label}:** {self.f2.value}\n**{self.f3.label}:** {self.f3.value}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗",color=0xff69b4);e.set_image(url=WELCOME_URL);await ch.send(i.user.mention+" Halo! Selamat datang di MIPI STORE! 🌸",embed=e,view=CloseView());eq=discord.Embed(title="Scan QRIS Disini",description="Silahkan scan QRIS ini ya 💗",color=0xff69b4);eq.set_image(url=QRIS_URL);await ch.send(embed=eq);await ch.send("STATUS ORDER - Owner only:",view=StatusView());await send_status_update(g,ticket_counter,i.user.name,i.user.id,paket_text,"Ticket Baru Dibuat",0xff69b4);gv=discord.ui.View();gv.add_item(discord.ui.Button(label="BUKA TICKET SAYA",style=discord.ButtonStyle.link,url=f"https://discord.com/channels/{g.id}/{ch.id}",emoji="🚀"));await i.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\n{ch.mention}",view=gv,ephemeral=True)
+            ticket_data[ch.id]={"user_id":i.user.id,"username":i.user.name,"nickname":nick_val,"roblox_username":roblox_val,"pembayaran":"QRIS","created_at":time.time(),"last_activity":time.time(),"number":ticket_counter,"paket":paket_text,"promo":(self.promo.value if self.promo else ""),"harga_akhir":harga_akhir,"robux_jumlah":robux_fix,"kategori":kat,"referral_by":ref_by}
+            if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
+                desc_text=f"**Jenis:** {self.jenis}\n**Username Roblox:** {roblox_val}\n**Nickname Roblox:** {nick_val}\n**Nominal Robux:** {nominal_val}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗"
+            else:
+                desc_text=f"**Jenis:** {self.jenis}\n**{self.f1.label}:** {self.f1.value}\n**{self.f2.label}:** {self.f2.value}\n**{self.f3.label}:** {self.f3.value}\n\nTicket #{ticket_counter}\nKirim bukti di sini ya 💗"
+            e=discord.Embed(title=f"Ticket Baru - {self.jenis} - {i.user.name}",description=desc_text,color=0xff69b4);e.set_image(url=WELCOME_URL);await ch.send(i.user.mention+" Halo! Selamat datang di MIPI STORE! 🌸",embed=e,view=CloseView());eq=discord.Embed(title="Scan QRIS Disini",description="Silahkan scan QRIS ini ya 💗",color=0xff69b4);eq.set_image(url=QRIS_URL);await ch.send(embed=eq);await ch.send("STATUS ORDER - Owner only:",view=StatusView());await send_status_update(g,ticket_counter,i.user.name,i.user.id,paket_text,"Ticket Baru Dibuat",0xff69b4);gv=discord.ui.View();gv.add_item(discord.ui.Button(label="BUKA TICKET SAYA",style=discord.ButtonStyle.link,url=f"https://discord.com/channels/{g.id}/{ch.id}",emoji="🚀"));await i.response.send_message(f"Ticket **{self.jenis}** kamu sudah dibuat!\n{ch.mention}",view=gv,ephemeral=True)
         except Exception as e:
             print(f"modal err {e}");traceback.print_exc()
             try:
