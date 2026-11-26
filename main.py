@@ -612,15 +612,32 @@ class SaldoView(discord.ui.View):
 def build_ticket_panel_baru_embed():
     e=discord.Embed(title="🎫 Mipi Store - Ticket Order",description="💎 **Robux Via Username** - Beli Robux Via Username\n🔑 **Robux Vlog** - Beli Robux Via Login\n💠 **Beli Limited Item** - Beli Item Via Trade\n💰 **Jual Limited Item** - Cashout\n🎁 **Beli Item Offsale** - Via Redeem Code\n⭐ **Beli Roblox Plus** - Plus Monthly\n🛡️ **Rekber/MM** - Rekber, Akun, Jasa\n🐱 **Other/Nanya** - Pertanyaan\n👥 **Via Komunitas** - Via Group\n💃 **Beli Akun** - Beli Akun Sultan\n\n✨ **V5:** Referral 5% • Daily • Level • Voucher • Game!\nMipi Store 💗",color=0x2B2D31);e.set_image(url=WELCOME_URL);e.set_footer(text="Mipi Store - Pilih tombol di bawah!");return e
 class OrderModalBaru(discord.ui.Modal):
-    def __init__(self,jenis:str):
-        super().__init__(title=f"Order - {jenis}");self.jenis=jenis
-        if jenis in ["BELI LIMITED","JUAL LIMITED","BELI ITEM OFFSALE"]: self.f1=discord.ui.TextInput(label="Username Roblox",placeholder="Username Roblox kamu",required=True);self.f2=discord.ui.TextInput(label="Nama Item",placeholder="Contoh: Domino Crown",required=True);self.f3=discord.ui.TextInput(label="Harga / Budget",placeholder="Contoh: 500k / QRIS",required=True)
-        elif jenis=="BELI AKUN": self.f1=discord.ui.TextInput(label="Username Discord / Roblox",placeholder="Username kamu",required=True);self.f2=discord.ui.TextInput(label="Akun Yang Dicari",placeholder="Contoh: Akun Sultan",required=True);self.f3=discord.ui.TextInput(label="Budget",placeholder="Contoh: 1jt",required=True)
-        elif jenis=="REKBER": self.f1=discord.ui.TextInput(label="Username Kamu",placeholder="Username kamu",required=True);self.f2=discord.ui.TextInput(label="Barang / Jasa Rekber",placeholder="Contoh: Rekber Akun 500k",required=True);self.f3=discord.ui.TextInput(label="Username Lawan",placeholder="@ lawan",required=True)
-        elif jenis in ["OTHER","VIA KOMUNITAS","ROBLOX PLUSS"]: self.f1=discord.ui.TextInput(label="Username Roblox",placeholder="Username kamu",required=True);self.f2=discord.ui.TextInput(label="Keperluan",placeholder="Jelasin mau apa",style=discord.TextStyle.paragraph,required=True);self.f3=discord.ui.TextInput(label="Metode Pembayaran",placeholder="QRIS / DANA",required=True,default="QRIS")
-        else: self.f1=discord.ui.TextInput(label="Nickname Roblox",placeholder="Nickname",required=True);self.f2=discord.ui.TextInput(label="Username",placeholder="Username Roblox",required=True);self.f3=discord.ui.TextInput(label="Paket yang dipilih",placeholder="Contoh: 500 Robux",required=True)
+       def __init__(self,jenis:str):
+        self.jenis=jenis
+        super().__init__(title=f"Order - {jenis} | MIPI STORE")
+        if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
+            l1,l2,l3="Username Roblox","Nominal Robux","Metode Pembayaran"
+            p1,p2,p3="Contoh: RafixMP","Contoh: 200","Contoh: QRIS / Dana / Gopay"
+        elif jenis in ["BELI LIMITED","JUAL LIMITED","OFFSALE"]:
+            l1,l2,l3="Nama Item","Harga / Budget","Username Roblox"
+            p1,p2,p3="Contoh: Classic Fedora","Contoh: 50000","Contoh: RafixMP"
+        elif jenis=="BELI AKUN":
+            l1,l2,l3="Akun Yang Dicari","Budget","Username Discord"
+            p1,p2,p3="Contoh: Akun 2018+","Contoh: 100000","Contoh: m.rafii"
+        elif jenis=="REKBER":
+            l1,l2,l3="Barang Yang Direkber","Nominal","Username Penjual/Pembeli"
+            p1,p2,p3="Contoh: Limited Fedora","Contoh: 200000","Contoh: @pembeli"
+        else:
+            l1,l2,l3="Keperluan","Detail","Username Roblox"
+            p1,p2,p3="Contoh: Mau nanya stok","Tulis detailnya","Contoh: RafixMP"
+        self.f1=discord.ui.TextInput(label=l1,placeholder=p1,required=True,max_length=100)
+        self.f2=discord.ui.TextInput(label=l2,placeholder=p2,required=True,max_length=100)
+        self.f3=discord.ui.TextInput(label=l3,placeholder=p3,required=False,max_length=100,style=discord.TextStyle.paragraph)
         self.add_item(self.f1);self.add_item(self.f2);self.add_item(self.f3)
-        if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]: self.promo=discord.ui.TextInput(label="Kode Promo (Opsional)",placeholder="Kosongin aja kalau gak ada",required=False);self.add_item(self.promo);self.ref=discord.ui.TextInput(label="Kode Referral (Opsional)",placeholder="Contoh: MIPI-12345",required=False);self.add_item(self.ref)
+        if jenis in ["VIA SEND","VIA LOGIN"]:
+            self.promo=discord.ui.TextInput(label="Kode Promo (Opsional)",placeholder="Kosongkan jika tidak ada",required=False,max_length=20)
+            self.ref=discord.ui.TextInput(label="Kode Referral (Opsional)",placeholder="Kosongkan jika tidak ada",required=False,max_length=20)
+            self.add_item(self.promo);self.add_item(self.ref)
         else: self.promo=None;self.ref=None
     async def on_submit(self,interaction:discord.Interaction):
         global ticket_counter;ticket_counter+=1;guild=interaction.guild;overwrites={guild.default_role:discord.PermissionOverwrite(read_messages=False),interaction.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),guild.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)};category=get_ticket_category(guild);prefix=self.jenis.lower().replace(" ","-").replace("/","-");channel=await guild.create_text_channel(name=f"{prefix}-{ticket_counter}-{interaction.user.name}",overwrites=overwrites,category=category);paket_text=f"{self.jenis} - {self.f2.value}";harga_akhir=0;kategori=jenis_to_kategori(self.jenis);robux_jumlah_fix=0;ref_by=None
