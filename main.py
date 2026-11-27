@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands, tasks
+from discord import app_commands
 import os,time,html,re,asyncio,json,random,traceback
 from datetime import datetime,timedelta
 intents=discord.Intents.default();intents.message_content=True;intents.members=True;intents.guilds=True
@@ -176,6 +177,9 @@ def _hitung_saldo(paket_text,kategori,robux_jumlah,harga_akhir):
     m=re.search(r'(\d+)',str(paket_text).replace('.','').replace(',',''))
     if not m: return 0,0
     j=int(m.group(1));return j,get_harga(j,kategori)
+# ===== LOGIKA BARU YANG BENER =====
+# SULTAN DIISI -> BULANAN GAK IKUT ❌
+# BULANAN DIISI -> SULTAN IKUT ✅ (karena Sultan = ALL TIME)
 def add_to_sultan_only(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
     try:
         jumlah,harga=_hitung_saldo(paket_text,kategori,robux_jumlah,harga_akhir)
@@ -192,9 +196,14 @@ def add_to_bulanan_only(user_id,username,paket_text,kategori="via_username",robu
         if bulan not in d: d[bulan]={}
         if uid not in d[bulan]: d[bulan][uid]={"username":username,"total":0,"transaksi":0,"total_rp":0}
         d[bulan][uid]["username"]=username;d[bulan][uid]["total"]+=jumlah;d[bulan][uid]["transaksi"]+=1;d[bulan][uid]["total_rp"]+=harga;save_leaderboard_bulanan(d)
+        # BULANAN DIISI -> SULTAN OTOMATIS IKUT!
+        ds=load_leaderboard_sultan()
+        if uid not in ds: ds[uid]={"username":username,"total":0,"transaksi":0,"total_rp":0}
+        ds[uid]["username"]=username;ds[uid]["total"]+=jumlah;ds[uid]["transaksi"]+=1;ds[uid]["total_rp"]+=harga;save_leaderboard_sultan(ds)
     except Exception as e: print(f"bulanan err {e}")
 def add_to_leaderboard(user_id,username,paket_text,kategori="via_username",robux_jumlah=None,harga_akhir=None):
-    add_to_sultan_only(user_id,username,paket_text,kategori,robux_jumlah,harga_akhir);add_to_bulanan_only(user_id,username,paket_text,kategori,robux_jumlah,harga_akhir)
+    # Dua-duanya = sama kayak bulanan sekarang (bulanan udah otomatis ke sultan)
+    add_to_bulanan_only(user_id,username,paket_text,kategori,robux_jumlah,harga_akhir)
 def get_total_belanja(user_id):
     d=load_leaderboard_sultan();u=str(user_id)
     if u not in d: return 0,0,0
@@ -203,6 +212,46 @@ def get_total_bulanan(user_id):
     d=load_leaderboard_bulanan();b=datetime.now().strftime("%Y-%m");u=str(user_id);users=d.get(b,{})
     if u not in users: return 0,0,0
     return users[u].get("total_rp",0),users[u].get("total",0),users[u].get("transaksi",0)
+# 2 MODE ROBUX / RUPIAH
+def get_robux_dari_rp(rp, kategori="via_username"):
+    data=load_pricelist(kategori)
+    for robux, harga in data.items():
+        if int(harga)==int(rp): return int(robux)
+    if data:
+        items=sorted(data.items(), key=lambda x: x[1])
+        for (r1,h1),(r2,h2) in zip(items, items[1:]):
+            if h1 <= rp <= h2 and h2 != h1:
+                return int(r1 + (rp - h1) * (r2 - r1) / (h2 - h1))
+        r_last, h_last = items[-1]
+        if h_last>0: return int(rp * r_last / h_last)
+    return int(rp // 155) if rp < 77500 else int(rp // 150)
+def konversi_input(jumlah_input, mode, kategori="via_username"):
+    if mode=="rupiah":
+        robux=get_robux_dari_rp(jumlah_input, kategori); return robux, int(jumlah_input)
+    else:
+        robux=int(jumlah_input); return robux, get_harga(robux, kategori)
+def kurang_sultan_only(user_id, robux_jumlah, harga_akhir):
+    try:
+        uid=str(user_id); d=load_leaderboard_sultan()
+        if uid not in d: return None
+        d[uid]["total"]=max(0, d[uid].get("total",0)-int(robux_jumlah))
+        d[uid]["total_rp"]=max(0, d[uid].get("total_rp",0)-int(harga_akhir))
+        save_leaderboard_sultan(d); return d.get(uid, {"total":0,"total_rp":0,"transaksi":0})
+    except Exception as e: print(f"kurang sultan err {e}"); return None
+def kurang_bulanan_only(user_id, robux_jumlah, harga_akhir):
+    try:
+        uid=str(user_id); bulan=datetime.now().strftime("%Y-%m"); d=load_leaderboard_bulanan()
+        hasil=None
+        if bulan in d and uid in d[bulan]:
+            d[bulan][uid]["total"]=max(0, d[bulan][uid].get("total",0)-int(robux_jumlah))
+            d[bulan][uid]["total_rp"]=max(0, d[bulan][uid].get("total_rp",0)-int(harga_akhir))
+            save_leaderboard_bulanan(d); hasil=d[bulan][uid]
+        # KURANG BULANAN -> SULTAN IKUT KURANG JUGA
+        kurang_sultan_only(user_id, robux_jumlah, harga_akhir)
+        return hasil
+    except Exception as e: print(f"kurang bulanan err {e}"); return None
+def kurang_dua_duanya(user_id, robux_jumlah, harga_akhir):
+    s=kurang_sultan_only(user_id, robux_jumlah, harga_akhir); b=kurang_bulanan_only(user_id, robux_jumlah, harga_akhir); return s,b
 PENDING_FILE="pending_saldo.json"
 def load_pending(): return _load(PENDING_FILE,{})
 def save_pending(d): _save(PENDING_FILE,d)
@@ -587,7 +636,6 @@ class OrderModalBaru(discord.ui.Modal):
     def __init__(self,jenis:str):
         self.jenis=jenis;super().__init__(title=f"Order - {jenis} | MIPI STORE")
         if jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
-            # PAS: Username di atas, Nickname di bawahnya!
             self.f1=discord.ui.TextInput(label="Username Roblox (Pakai @)",placeholder="Contoh: @RafixMP",required=True,max_length=100)
             self.f2=discord.ui.TextInput(label="Nickname Roblox",placeholder="Contoh: Rafi",required=True,max_length=100)
             self.f3=discord.ui.TextInput(label="Nominal Robux",placeholder="Contoh: 200",required=True,max_length=100)
@@ -605,13 +653,12 @@ class OrderModalBaru(discord.ui.Modal):
     async def on_submit(self,i:discord.Interaction):
         try:
             global ticket_counter;ticket_counter+=1;g=i.guild;ov={g.default_role:discord.PermissionOverwrite(read_messages=False),i.user:discord.PermissionOverwrite(read_messages=True,send_messages=True),g.me:discord.PermissionOverwrite(read_messages=True,send_messages=True)};cat=get_ticket_category(g);prefix=self.jenis.lower().replace(" ","-").replace("/","-");ch=await g.create_text_channel(name=f"{prefix}-{ticket_counter}-{i.user.name}",overwrites=ov,category=cat)
-            # PAS: Username di atas, Nickname di bawah!
             if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
                 roblox_val=self.f1.value.strip()
                 if not roblox_val.startswith("@"): roblox_val="@"+roblox_val
-                nick_val=self.f2.value.strip();nominal_val=self.f3.value.strip();display_f1=roblox_val;display_f2=nick_val
+                nick_val=self.f2.value.strip();nominal_val=self.f3.value.strip()
             else:
-                roblox_val=self.f1.value;nick_val=self.f1.value;nominal_val=self.f2.value;display_f1=self.f1.value;display_f2=self.f2.value
+                roblox_val=self.f1.value;nick_val=self.f1.value;nominal_val=self.f2.value
             paket_text=f"{self.jenis} - {nominal_val}";harga_akhir=0;kat=jenis_to_kategori(self.jenis);robux_fix=0;ref_by=None
             if self.jenis in ["VIA SEND","VIA LOGIN","VIA KOMUNITAS"]:
                 mt=re.search(r'(\d+)',str(nominal_val).replace('.','').replace(',',''));ji=int(mt.group(1)) if mt else 500;robux_fix=ji;ha=get_harga(ji,kat);kode_input=self.promo.value.strip() if self.promo and self.promo.value else "";harga_akhir,diskon,err=cek_promo(kode_input,ha,ji)
@@ -641,7 +688,7 @@ class ButtonTicket(discord.ui.Button):
         try:
             v=TicketTypeView()
             if not await v.cek_store(i): return
-            jenis=self.jenis_map.get(self.custom_id,"VIA SEND");kat=jenis_to_kategori(jenis);ks=kat
+            jenis=self.jenis_map.get(self.custom_id,"VIA SEND");ks=jenis_to_kategori(jenis)
             if jenis=="REKBER": ks="rekber"
             elif jenis=="BELI AKUN": ks="beli_akun"
             elif jenis=="OTHER": ks="other"
@@ -769,6 +816,118 @@ class PricelistPublicView(discord.ui.View):
         except Exception as e: print(f"select err {e}")
 def build_pricelist_public_embed():
     e=discord.Embed(title="💎 DAFTAR HARGA ROBUX • MIPI STORE",description="💗 **Pilih kategori di dropdown bawah:**\n\n💎 Via Username\n🔑 Via Login\n👥 Via Komunitas\n⭐ Roblox Plus\n💠 Limited Item\n🛡️ Rekber\n\n💗 **Mipi Store**",color=0xff69b4);e.set_image(url=WELCOME_URL);e.set_footer(text="MIPI STORE • Pilih kategori di bawah!");return e
+# ===== PANEL SALDO - TINGGAL PENCET, GAK NGETIK! =====
+panel_saldo_state={}
+class PanelSaldoView(discord.ui.View):
+    def __init__(self,admin_id):
+        super().__init__(timeout=300);self.admin_id=admin_id
+        if admin_id not in panel_saldo_state: panel_saldo_state[admin_id]={"target":None,"mode":"robux","kategori":"via_username","aksi":"add_sultan"}
+    def get_state(self): return panel_saldo_state[self.admin_id]
+    def build_embed(self):
+        s=self.get_state();target_txt=f"<@{s['target']}>" if s['target'] else "❌ Belum pilih!";mode_txt="🪙 Robux" if s['mode']=="robux" else "💵 Rupiah"
+        aksi_map={"add_sultan":"👑 + Sultan doang (Bulanan GAK ikut)","min_sultan":"👑 - Sultan doang (Bulanan GAK ikut)","add_bulanan":"🌸 + Bulanan doang (Sultan IKUT!)","min_bulanan":"🌸 - Bulanan doang (Sultan IKUT kurang!)","add_both":"✅ + Dua-duanya","min_both":"✅ - Dua-duanya"}
+        e=discord.Embed(title="⚙️ PANEL SALDO - MIPI STORE",description=f"**Tinggal klik-klik, gak perlu ngetik!**\n\n👤 **Target:** {target_txt}\n🪙 **Mode:** {mode_txt}\n📦 **Kategori:** {s['kategori']}\n🎯 **Aksi:** {aksi_map.get(s['aksi'])}\n\n**Cara:**\n1️⃣ Pilih orang\n2️⃣ Pilih Mode + Kategori + Aksi\n3️⃣ Pencet **✅ LANJUT - KETIK JUMLAH**",color=0xff69b4);e.set_footer(text="MIPI STORE • Panel Saldo");return e
+    @discord.ui.user_select(placeholder="1️⃣ Pilih siapa yang mau di-setting? 👤",row=0)
+    async def pilih_user(self,i:discord.Interaction,select:discord.ui.UserSelect):
+        if i.user.id!=self.admin_id: await i.response.send_message("❌ Ini panel orang lain!",ephemeral=True);return
+        self.get_state()["target"]=select.values[0].id;await i.response.edit_message(embed=self.build_embed(),view=self)
+    @discord.ui.select(placeholder="2️⃣ Pilih Mode: Robux / Rupiah",options=[discord.SelectOption(label="🪙 Robux",value="robux",emoji="🪙"),discord.SelectOption(label="💵 Rupiah",value="rupiah",emoji="💵")],row=1)
+    async def pilih_mode(self,i:discord.Interaction,select:discord.ui.Select):
+        if i.user.id!=self.admin_id: await i.response.send_message("❌ Ini panel orang lain!",ephemeral=True);return
+        self.get_state()["mode"]=select.values[0];await i.response.edit_message(embed=self.build_embed(),view=self)
+    @discord.ui.select(placeholder="3️⃣ Pilih Kategori",options=[discord.SelectOption(label="💎 Via Username",value="via_username",emoji="💎"),discord.SelectOption(label="🔑 Via Login",value="via_login",emoji="🔑"),discord.SelectOption(label="👥 Via Komunitas",value="via_komunitas",emoji="👥"),discord.SelectOption(label="⭐ Plus",value="plus",emoji="⭐"),discord.SelectOption(label="💠 Limited",value="limited",emoji="💠")],row=2)
+    async def pilih_kategori(self,i:discord.Interaction,select:discord.ui.Select):
+        if i.user.id!=self.admin_id: await i.response.send_message("❌ Ini panel orang lain!",ephemeral=True);return
+        self.get_state()["kategori"]=select.values[0];await i.response.edit_message(embed=self.build_embed(),view=self)
+    @discord.ui.select(placeholder="4️⃣ Pilih Aksi: + / - Sultan / Bulanan",options=[discord.SelectOption(label="👑 + Sultan Doang",value="add_sultan",emoji="👑",description="Bulanan GAK ikut"),discord.SelectOption(label="👑 - Sultan Doang",value="min_sultan",emoji="👑",description="Bulanan GAK ikut"),discord.SelectOption(label="🌸 + Bulanan Doang",value="add_bulanan",emoji="🌸",description="Sultan IKUT!"),discord.SelectOption(label="🌸 - Bulanan Doang",value="min_bulanan",emoji="🌸",description="Sultan IKUT kurang!"),discord.SelectOption(label="✅ + Dua-duanya",value="add_both",emoji="✅",description="Sultan + Bulanan"),discord.SelectOption(label="✅ - Dua-duanya",value="min_both",emoji="✅",description="Sultan + Bulanan")],row=3)
+    async def pilih_aksi(self,i:discord.Interaction,select:discord.ui.Select):
+        if i.user.id!=self.admin_id: await i.response.send_message("❌ Ini panel orang lain!",ephemeral=True);return
+        self.get_state()["aksi"]=select.values[0];await i.response.edit_message(embed=self.build_embed(),view=self)
+    @discord.ui.button(label="✅ LANJUT - KETIK JUMLAH",style=discord.ButtonStyle.success,emoji="✅",row=4)
+    async def lanjut(self,i:discord.Interaction,b:discord.ui.Button):
+        if i.user.id!=self.admin_id: await i.response.send_message("❌ Ini panel orang lain!",ephemeral=True);return
+        s=self.get_state()
+        if not s["target"]: await i.response.send_message("❌ Pilih orang dulu lek! Di dropdown paling atas!",ephemeral=True);return
+        await i.response.send_modal(PanelJumlahModal(self.admin_id))
+    @discord.ui.button(label="🔄 Refresh",style=discord.ButtonStyle.secondary,emoji="🔄",row=4)
+    async def refresh(self,i:discord.Interaction,b:discord.ui.Button): await i.response.edit_message(embed=self.build_embed(),view=self)
+class PanelJumlahModal(discord.ui.Modal,title="Ketik Jumlah - Panel Saldo"):
+    def __init__(self,admin_id):
+        super().__init__();self.admin_id=admin_id;s=panel_saldo_state.get(admin_id,{"mode":"robux"});label="Ketik Robux (Contoh: 1000)" if s["mode"]=="robux" else "Ketik Rupiah (Contoh: 150000)";self.jumlah_input=discord.ui.TextInput(label=label,placeholder="Angka aja!",required=True,max_length=15);self.add_item(self.jumlah_input)
+    async def on_submit(self,i:discord.Interaction):
+        try:
+            s=panel_saldo_state.get(self.admin_id)
+            if not s or not s["target"]: await i.response.send_message("❌ Pilih orang dulu di panel!",ephemeral=True);return
+            teks=self.jumlah_input.value.replace("Rp","").replace(".","").replace(",","").replace(" ","").strip();jumlah=int(teks)
+            if jumlah<=0: await i.response.send_message("❌ Harus lebih dari 0!",ephemeral=True);return
+            kat=kategori_alias(s["kategori"]);robux,harga=konversi_input(jumlah,s["mode"],kat);target=await bot.fetch_user(s["target"]);aksi=s["aksi"];mode_txt=f"🪙 {robux} R$" if s["mode"]=="robux" else f"💵 {format_rp(jumlah)} (= {robux} R$)"
+            if aksi=="add_sultan":
+                add_to_sultan_only(target.id,target.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await i.response.send_message(f"👑 **+{mode_txt}** ke **TOP SULTAN** doang!\n{target.mention} • {format_rp(harga)}\n📅 Bulanan: GAK IKUT! ❌",ephemeral=False)
+                try: await update_top_sultan(i.guild)
+                except: pass
+            elif aksi=="min_sultan":
+                hasil=kurang_sultan_only(target.id,robux,harga)
+                if hasil is None: await i.response.send_message(f"❌ {target.mention} belum ada di Top Sultan!",ephemeral=True);return
+                await i.response.send_message(f"👑 **-{mode_txt}** dari **TOP SULTAN** doang!\n{target.mention}\nSisa: **{hasil.get('total',0):,} R$** ({format_rp(hasil.get('total_rp',0))})".replace(",","."),ephemeral=False)
+                try: await update_top_sultan(i.guild)
+                except: pass
+            elif aksi=="add_bulanan":
+                add_to_bulanan_only(target.id,target.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await i.response.send_message(f"🌸 **+{mode_txt}** ke **TOP BULANAN** doang!\n{target.mention} • {format_rp(harga)}\n👑 Sultan: **IKUT!** ✅ (All Time)",ephemeral=False)
+                try: await update_all_top(i.guild)
+                except: pass
+            elif aksi=="min_bulanan":
+                hasil=kurang_bulanan_only(target.id,robux,harga)
+                if hasil is None: await i.response.send_message(f"❌ {target.mention} belum ada di Top Bulanan!",ephemeral=True);return
+                await i.response.send_message(f"🌸 **-{mode_txt}** dari **TOP BULANAN** doang!\n{target.mention}\nSisa Bulanan: **{hasil.get('total',0):,} R$** ({format_rp(hasil.get('total_rp',0))})\n👑 Sultan: **IKUT KURANG!** ✅".replace(",","."),ephemeral=False)
+                try: await update_all_top(i.guild)
+                except: pass
+            elif aksi=="add_both":
+                add_to_leaderboard(target.id,target.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await i.response.send_message(f"✅ **+{mode_txt}** ke **DUA-DUANYA!**\n{target.mention} • {format_rp(harga)}",ephemeral=False)
+                try: await update_all_top(i.guild)
+                except: pass
+            elif aksi=="min_both":
+                kurang_dua_duanya(target.id,robux,harga);await i.response.send_message(f"✅ **-{mode_txt}** dari **DUA-DUANYA!**\n{target.mention}",ephemeral=False)
+                try: await update_all_top(i.guild)
+                except: pass
+        except Exception as e: await i.response.send_message(f"❌ Harus angka ya lek! Error: {e}",ephemeral=True)
+# ===== PANEL UTAMA ADMIN - SEMUA TINGGAL PENCET =====
+class PanelUtamaAdminView(discord.ui.View):
+    def __init__(self): super().__init__(timeout=None)
+    @discord.ui.button(label="⚙️ PANEL SALDO",style=discord.ButtonStyle.primary,custom_id="panel_utama_saldo",emoji="⚙️",row=0)
+    async def saldo(self,i:discord.Interaction,b:discord.ui.Button):
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        view=PanelSaldoView(i.user.id);await i.response.send_message(embed=view.build_embed(),view=view,ephemeral=True)
+    @discord.ui.button(label="💎 EDIT PRICELIST",style=discord.ButtonStyle.primary,custom_id="panel_utama_pricelist",emoji="💎",row=0)
+    async def pricelist(self,i:discord.Interaction,b:discord.ui.Button):
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        e=discord.Embed(title="💎 EDIT PRICELIST",description="1️⃣ Pilih Kategori\n2️⃣ Pilih Nominal\n3️⃣ Pencet ✏️ Edit!",color=0xff69b4);await i.response.send_message(embed=e,view=EditPricelistView(),ephemeral=True)
+    @discord.ui.button(label="🛍️ KELOLA PRODUK",style=discord.ButtonStyle.success,custom_id="panel_utama_produk",emoji="🛍️",row=0)
+    async def produk(self,i:discord.Interaction,b:discord.ui.Button):
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        e=discord.Embed(title="🛍️ KELOLA PRODUK",description="➕ Tambah / ➖ Kurangin / 📦 Tambah Stok",color=0xff69b4);await i.response.send_message(embed=e,view=PanelProdukView(),ephemeral=True)
+    @discord.ui.button(label="🎫 PANEL TICKET",style=discord.ButtonStyle.secondary,custom_id="panel_utama_ticket",emoji="🎫",row=1)
+    async def ticket(self,i:discord.Interaction,b:discord.ui.Button):
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        await i.response.send_message(embed=build_ticket_panel_baru_embed(),view=TicketTypeView(),ephemeral=True)
+    @discord.ui.button(label="💰 PANEL PRICELIST",style=discord.ButtonStyle.secondary,custom_id="panel_utama_pricelist_pub",emoji="💰",row=1)
+    async def pricelist_pub(self,i:discord.Interaction,b:discord.ui.Button):
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        await i.response.send_message(embed=build_pricelist_public_embed(),view=PricelistPublicView(),ephemeral=True)
+    @discord.ui.button(label="🏪 BUKA TOKO",style=discord.ButtonStyle.success,custom_id="panel_utama_open",emoji="🏪",row=2)
+    async def open_toko(self,i:discord.Interaction,b:discord.ui.Button):
+        global STORE_STATUS
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        STORE_STATUS="open";await i.response.send_message("✅ Mipi Store **DIBUKA**!",ephemeral=True)
+    @discord.ui.button(label="☕ BREAK",style=discord.ButtonStyle.primary,custom_id="panel_utama_break",emoji="☕",row=2)
+    async def break_toko(self,i:discord.Interaction,b:discord.ui.Button):
+        global STORE_STATUS
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        STORE_STATUS="break";await i.response.send_message("☕ Mipi Store **BREAK** 15-30 menit!",ephemeral=True)
+    @discord.ui.button(label="💤 TUTUP TOKO",style=discord.ButtonStyle.danger,custom_id="panel_utama_close",emoji="💤",row=2)
+    async def close_toko(self,i:discord.Interaction,b:discord.ui.Button):
+        global STORE_STATUS
+        if not is_admin_or_owner(i.user,i.guild): await i.response.send_message("❌ Hanya Admin!",ephemeral=True);return
+        STORE_STATUS="closed";await i.response.send_message("💤 Mipi Store **TUTUP**!",ephemeral=True)
 PANEL_FILE="panel.json"
 def load_panel():
     try:
@@ -789,6 +948,7 @@ async def update_all_panels(g):
                 if key=="ticket": await msg.edit(embed=build_ticket_panel_baru_embed(),view=TicketTypeView())
                 elif key=="pricelist": await msg.edit(embed=build_pricelist_public_embed(),view=PricelistPublicView())
                 elif key=="produk": await msg.edit(embed=build_produk_embed(),view=PanelProdukView())
+                elif key=="admin": await msg.edit(embed=discord.Embed(title="⚙️ PANEL ADMIN - MIPI STORE",description="Semua tinggal pencet! Gak perlu ngetik!",color=0xff69b4),view=PanelUtamaAdminView())
             except: pass
     except: pass
 async def refresh_ticket_panel(g):
@@ -810,7 +970,7 @@ async def on_message(m):
 @bot.event
 async def on_ready():
     print(f"Login {bot.user} - MIPI STORE V8 FIX!")
-    bot.add_view(OrderView());bot.add_view(TicketTypeView());bot.add_view(CloseView());bot.add_view(StatusView());bot.add_view(RatingView(0));bot.add_view(SaldoView());bot.add_view(GiveawayView("dummy"));bot.add_view(EditPricelistView());bot.add_view(PanelProdukView());bot.add_view(PricelistPublicView())
+    bot.add_view(OrderView());bot.add_view(TicketTypeView());bot.add_view(CloseView());bot.add_view(StatusView());bot.add_view(RatingView(0));bot.add_view(SaldoView());bot.add_view(GiveawayView("dummy"));bot.add_view(EditPricelistView());bot.add_view(PanelProdukView());bot.add_view(PricelistPublicView());bot.add_view(PanelUtamaAdminView())
     for oid in load_pending().keys():
         try: bot.add_view(KonfirmasiSaldoView(oid))
         except: pass
@@ -836,6 +996,17 @@ async def pricelist_baru(i:discord.Interaction):
     try:
         await safe_defer(i,ephemeral=True);e=build_pricelist_public_embed();msg=await i.channel.send(embed=e,view=PricelistPublicView());panels=load_panel();panels["pricelist"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(i,content="✅ Pricelist dikirim!",ephemeral=True)
     except Exception as e: await safe_followup(i,content=f"❌ Error: {e}",ephemeral=True)
+@bot.tree.command(name="panel-admin",description="Buka SEMUA PANEL ADMIN - Tinggal pencet! ⚙️")
+async def panel_admin_cmd(i:discord.Interaction):
+    await safe_defer(i,ephemeral=True)
+    if not is_admin_or_owner(i.user,i.guild): await safe_followup(i,content="❌ Hanya Admin!",ephemeral=True);return
+    e=discord.Embed(title="⚙️ PANEL ADMIN - MIPI STORE",description="**Semua tinggal pencet! Gak perlu ngetik!**\n\n⚙️ **PANEL SALDO** - Tambah / Kurang Sultan / Bulanan\n💎 **EDIT PRICELIST** - Ganti harga\n🛍️ **KELOLA PRODUK** - Tambah produk\n🎫 **PANEL TICKET** - Panel order\n💰 **PANEL PRICELIST** - Panel harga\n🏪 **BUKA / BREAK / TUTUP TOKO** - Tinggal pencet!",color=0xff69b4);e.set_image(url=WELCOME_URL)
+    msg=await i.channel.send(embed=e,view=PanelUtamaAdminView());panels=load_panel();panels["admin"]={"channel_id":str(msg.channel.id),"message_id":str(msg.id)};save_panel(panels);await safe_followup(i,content="✅ Panel Admin dikirim!",ephemeral=True)
+@bot.tree.command(name="panel-saldo",description="Buka PANEL SALDO - Tinggal pencet! ⚙️")
+async def panel_saldo_cmd(i:discord.Interaction):
+    await safe_defer(i,ephemeral=True)
+    if not is_admin_or_owner(i.user,i.guild): await safe_followup(i,content="❌ Hanya Admin!",ephemeral=True);return
+    view=PanelSaldoView(i.user.id);await safe_followup(i,embed=view.build_embed(),view=view,ephemeral=True)
 @bot.tree.command(name="open",description="Buka toko")
 async def open_cmd(i:discord.Interaction):
     global STORE_STATUS;await safe_defer(i,ephemeral=True)
@@ -967,32 +1138,11 @@ async def pending_cmd(i:discord.Interaction):
     txt="⏳ **PENDING SALDO**\n\n"
     for oid,dd in d.items(): txt+=f"**{oid}** — <@{dd['user_id']}> — {dd['paket']} — {dd['robux']} R$ — {format_rp(dd['harga'])}\n"
     await safe_followup(i,content=txt,ephemeral=True)
-@bot.tree.command(name="add-saldo-sultan",description="Tambah saldo ke TOP SULTAN doang 👑 (Admin)")
-async def add_saldo_sultan(i:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
-    await safe_defer(i,ephemeral=True)
-    if not is_admin_or_owner(i.user,i.guild): await safe_followup(i,content="Hanya Admin!",ephemeral=True);return
-    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_sultan_only(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(i,content=f"👑 **+{robux} R$** ke **TOP SULTAN** doang!\n{user.mention} • {format_rp(harga)}",ephemeral=True)
-    try: await update_top_sultan(i.guild)
-    except: pass
-@bot.tree.command(name="add-saldo-bulanan",description="Tambah saldo ke TOP BULANAN doang 🌸 (Admin)")
-async def add_saldo_bulanan(i:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
-    await safe_defer(i,ephemeral=True)
-    if not is_admin_or_owner(i.user,i.guild): await safe_followup(i,content="Hanya Admin!",ephemeral=True);return
-    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_bulanan_only(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(i,content=f"🌸 **+{robux} R$** ke **TOP BULANAN** doang!\n{user.mention} • {format_rp(harga)}",ephemeral=True)
-    try: await update_top_bulanan(i.guild)
-    except: pass
-@bot.tree.command(name="add-saldo",description="Tambah saldo ke DUA-DUANYA 👑+🌸 (Admin)")
-async def add_saldo(i:discord.Interaction,user:discord.User,robux:int,kategori:str="via_username"):
-    await safe_defer(i,ephemeral=True)
-    if not is_admin_or_owner(i.user,i.guild): await safe_followup(i,content="Hanya Admin!",ephemeral=True);return
-    kat=kategori_alias(kategori);harga=get_harga(robux,kat);add_to_leaderboard(user.id,user.name,f"{robux} Robux",kategori=kat,robux_jumlah=robux,harga_akhir=harga);await safe_followup(i,content=f"✅ **+{robux} R$** ke **DUA-DUANYA!**\n{user.mention} • {format_rp(harga)}",ephemeral=True)
-    try: await update_all_top(i.guild)
-    except: pass
 @bot.tree.command(name="lihat-harga",description="Lihat harga pricelist")
 async def lihat_harga(i:discord.Interaction,kategori:str="via_username"): await safe_defer(i,ephemeral=True);kat=kategori_alias(kategori);await safe_followup(i,embed=build_pricelist_embed(kat),ephemeral=True)
 @bot.tree.command(name="pricelist-rekber",description="Pricelist Rekber")
 async def pricelist_rekber(i:discord.Interaction): await safe_defer(i,ephemeral=True);await i.channel.send(embed=build_rekber_embed(),view=RekberView(guild_id=i.guild.id));await safe_followup(i,content="✅ Pricelist Rekber dikirim!",ephemeral=True)
 @bot.tree.command(name="help-mipi",description="Lihat semua command")
 async def help_mipi(i:discord.Interaction):
-    await safe_defer(i,ephemeral=True);txt="💗 **HELP - MIPI STORE V8**\n\n**ORDER:** `/ticket` `/pricelist`\n**EDIT:** `/panel-edit-pricelist` `/panel-produk` `/list-produk`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**ADD SALDO:** `/add-saldo` `/add-saldo-sultan` `/add-saldo-bulanan`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V8:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(i,content=txt,ephemeral=True)
+    await safe_defer(i,ephemeral=True);txt="💗 **HELP - MIPI STORE V8**\n\n**PANEL (TINGGAL PENCET!):** `/panel-admin` `/panel-saldo` `/ticket` `/pricelist`\n**SALDO:** `/saldo` `/top-sultan` `/top-bulanan` `/pending`\n**STOCK:** `/tutup-kategori` `/buka-kategori` `/cek-stock` `/notify`\n**V8:** `/referral` `/daily` `/tuker-poin` `/buat-voucher` `/redeem-voucher` `/tebak-harga`\n**TOKO:** `/open` `/break` `/close`\n**ADMIN:** `/tambah-promo` `/lihat-promo` `/giveaway` `/reset-bulanan`";await safe_followup(i,content=txt,ephemeral=True)
 bot.run(os.getenv("DISCORD_TOKEN"))
